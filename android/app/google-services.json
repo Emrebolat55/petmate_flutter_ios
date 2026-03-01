@@ -1,0 +1,106 @@
+{
+  "project_info": {
+    "project_number": "644126239741",
+    "firebase_url": "https://petmate-f177e-default-rtdb.firebaseio.com",
+    "project_id": "petmate-f177e",
+    "storage_bucket": "petmate-f177e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:644126239741:android:2722d958ce3ada8c3ac794",
+        "android_client_info": {
+          "package_name": "com.bolatsoft.petmate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "644126239741-ef2lnq2fmsr16al5qgvjbe6br9gfkkip.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRyzH5ZheIfzvLPpdij_U_lz7liyKMjn8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "644126239741-ef2lnq2fmsr16al5qgvjbe6br9gfkkip.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:644126239741:android:baba4d7625ca08cb3ac794",
+        "android_client_info": {
+          "package_name": "com.example.petmate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "644126239741-778jtn7lratdk5us5ul9tjiu56jdihbr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.petmate",
+            "certificate_hash": "6b61ba5b80def48459af6a86418ae59a2f4b004b"
+          }
+        },
+        {
+          "client_id": "644126239741-ef2lnq2fmsr16al5qgvjbe6br9gfkkip.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRyzH5ZheIfzvLPpdij_U_lz7liyKMjn8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "644126239741-ef2lnq2fmsr16al5qgvjbe6br9gfkkip.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:644126239741:android:beb68b1e4a7d041d3ac794",
+        "android_client_info": {
+          "package_name": "com.example.petmate_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "644126239741-ef2lnq2fmsr16al5qgvjbe6br9gfkkip.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRyzH5ZheIfzvLPpdij_U_lz7liyKMjn8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "644126239741-ef2lnq2fmsr16al5qgvjbe6br9gfkkip.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
