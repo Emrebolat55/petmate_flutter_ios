@@ -25,6 +25,8 @@ workflows:
           xcode-project use-profiles
       - name: Get Flutter packages
         script: |
+          flutter clean
+          flutter create .
           flutter packages pub get
           flutter precache --ios
       - name: Build Flutter iOS (no codesign)
