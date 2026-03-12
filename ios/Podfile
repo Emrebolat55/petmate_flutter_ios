@@ -1,8 +1,8 @@
-# Robust CI/CD Podfile for Flutter with Dependency Conflict Fixes
-source 'https://github.com/CocoaPods/Specs.git'
-source 'https://cdn.cocoapods.org/'
-
+# Robust CI/CD Podfile for Flutter
 platform :ios, '14.0'
+
+# Use default CocoaPods trunk (Removes "multiple specifications" conflict)
+# No explicit sources needed unless using private repos
 
 # Load podhelper directly from Flutter SDK (Robust for CI)
 flutter_sdk_path = ENV['FLUTTER_ROOT']

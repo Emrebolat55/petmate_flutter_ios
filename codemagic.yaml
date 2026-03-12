@@ -32,7 +32,6 @@ workflows:
           flutter packages pub get
           flutter precache --ios
           pod cache clean --all
-          cd ios && pod repo update --verbose
       - name: Build Flutter iOS (no codesign)
         script: |
           flutter build ios --release --no-codesign
