@@ -20,7 +20,7 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --project "$XCODE_PROJECT" --create --type APPLE_DISTRIBUTION
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles --all-targets
       - name: Get Flutter packages
