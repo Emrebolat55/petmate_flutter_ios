@@ -9,13 +9,13 @@ workflows:
       cocoapods: default
       groups:
         - apple_auth # App Store Connect API Key group
-      integrations:
-        - app_store_connect
       vars:
         XCODE_SCHEME: "Runner"
         XCODE_PROJECT: "ios/Runner.xcodeproj"
         BUNDLE_ID: "com.bolatsoft.petmate"
         APP_STORE_APPLE_ID: 6742548485 # Replace with your Apple ID after creating the app
+    integrations:
+      - app_store_connect
     scripts:
       - name: Set up code signing
         script: |
