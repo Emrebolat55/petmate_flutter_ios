@@ -1,7 +1,21 @@
-# Standard Flutter Podfile
+# Professional CI/CD Podfile for Flutter
 platform :ios, '14.0'
 
-require_relative '../Flutter/podhelper'
+# Load podhelper directly from Flutter SDK (Robust for CI)
+flutter_sdk_path = ENV['FLUTTER_ROOT']
+if flutter_sdk_path.nil?
+  # Fallback for local development if FLUTTER_ROOT is not set
+  # This assumes a standard relative path if running on a Mac locally
+  podhelper_path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
+else
+  podhelper_path = File.join(flutter_sdk_path, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+end
+
+if File.exist?(podhelper_path)
+  require podhelper_path
+else
+  raise "podhelper.rb not found at #{podhelper_path}. Ensure Flutter SDK is installed and FLUTTER_ROOT is set."
+end
 
 project 'Runner', {
   'Debug' => :debug,

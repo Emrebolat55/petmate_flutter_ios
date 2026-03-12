@@ -26,6 +26,7 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter clean
+          rm -rf ios/Flutter
           flutter create .
           flutter packages pub get
           flutter precache --ios
