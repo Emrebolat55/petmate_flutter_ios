@@ -29,6 +29,9 @@ workflows:
           rm -rf ios/Flutter
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
+          # Force remove the problematic master repo and all pod caches
+          rm -rf ~/.cocoapods/repos/master
+          pod repo remove master || true
           flutter create .
           flutter packages pub get
           flutter precache --ios
