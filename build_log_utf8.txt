@@ -1,0 +1,36 @@
+﻿
+flutter : Support for Android x86 targets will be removed i
+n the next stable release after 3.27. See https://github.co
+m/flutter/flutter/issues/157543 for details.
+At line:1 char:1
++ flutter build apk --debug > build_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Support for A 
+   nd...43 for details.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Running Gradle task 'assembleDebug'...                          
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:checkDebugAarMetadata'.
+> A failure occurred while executing com.android.build.grad
+le.internal.tasks.CheckAarMetadataWorkAction
+   > An issue was found when checking AAR metadata:
+
+       1.  Dependency 'androidx.webkit:webkit:1.14.0' requi
+res Android Gradle plugin 8.1.1 or higher.
+
+           This build currently uses Android Gradle plugin 
+8.1.0.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BU´┐¢LD FAILED in 3s
+Running Gradle task 'assembleDebug'...                              4,5s
+Gradle task assembleDebug failed with exit code 1

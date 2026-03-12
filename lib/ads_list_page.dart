@@ -1,17 +1,22 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // YENİ EKLENDİ
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide Ad;
 import '../services/database_service.dart';
 import '../models/ad_model.dart';
 
 class AdsListPage extends StatefulWidget {
   final String filterType;
   final String filterAnimal;
+  final String filterCity;
+  final String filterDistrict;
 
   const AdsListPage({
     Key? key,
     required this.filterType,
     this.filterAnimal = '',
+    this.filterCity = '',
+    this.filterDistrict = '',
   }) : super(key: key);
 
   @override
@@ -26,10 +31,41 @@ class _AdsListPageState extends State<AdsListPage> {
   String _error = '';
   String _searchQuery = '';
 
+  // Reklam Değişkenleri
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  final String _adUnitId = 'ca-app-pub-4939596189180370/3397115958';
+
   @override
   void initState() {
     super.initState();
     _loadAds();
+    _loadBannerAd();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: _adUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          print('List Page Banner reklam yüklenemedi: $err');
+          ad.dispose();
+        },
+      ),
+    )..load();
   }
 
   Future<void> _loadAds() async {
@@ -63,6 +99,22 @@ class _AdsListPageState extends State<AdsListPage> {
       if (widget.filterAnimal.isNotEmpty) {
         ads = ads.where((ad) => ad.animalType == widget.filterAnimal).toList();
         print('🐕 ${widget.filterAnimal} filtresi: ${ads.length} ilan');
+      }
+
+      // Şehir filtresi uygula
+      if (widget.filterCity.isNotEmpty) {
+        ads = ads.where((ad) =>
+          ad.city.toLowerCase().contains(widget.filterCity.toLowerCase())
+        ).toList();
+        print('🏙 Şehir filtresi (${widget.filterCity}): ${ads.length} ilan');
+      }
+
+      // İlçe filtresi uygula
+      if (widget.filterDistrict.isNotEmpty) {
+        ads = ads.where((ad) =>
+          ad.district.toLowerCase().contains(widget.filterDistrict.toLowerCase())
+        ).toList();
+        print('📍 İlçe filtresi (${widget.filterDistrict}): ${ads.length} ilan');
       }
 
       setState(() {
@@ -270,6 +322,15 @@ class _AdsListPageState extends State<AdsListPage> {
           ],
         ),
       ),
+      bottomNavigationBar: _isBannerAdLoaded && _bannerAd != null
+          ? SafeArea(
+              child: SizedBox(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            )
+          : null,
     );
   }
 

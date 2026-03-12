@@ -2,7 +2,7 @@ name: petmate_flutter
 description: PetMate - Evcil Hayvan Platformu
 publish_to: 'none'
 
-version: 1.0.0+11
+version: 1.0.0+16
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -21,8 +21,16 @@ dependencies:
   http: ^1.1.0
   url_launcher: ^6.1.14
   geocoding: ^2.1.1
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+  provider: ^6.1.1
   # FLUTTER 3.x İÇİN UYUMLU ÖDEME SİSTEMİ
-  in_app_purchase: ^3.1.7
+  # in_app_purchase kaldırıldı (RevenueCat kullanılıyor)
+  google_mobile_ads: ^6.0.0
+  purchases_ui_flutter: ^8.11.0
+  purchases_flutter: ^8.11.0
+  
 
   # Alternatif: RevenueCat (Daha Kolay)
   # purchases_flutter: ^5.5.0
@@ -34,6 +42,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - assets/images/petlogo.png

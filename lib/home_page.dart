@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:petmate_flutter/l10n/generated/app_localizations.dart';
+import 'package:provider/provider.dart';
+import 'providers/locale_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'create_ad_page.dart';
 import 'profile_page.dart';
@@ -11,6 +14,7 @@ import 'settings_page.dart';
 import 'services/database_service.dart';
 import 'models/ad_model.dart';
 import 'businesses_page.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide Ad;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,9 +28,16 @@ class _HomePageState extends State<HomePage> {
   final User? _currentUser = FirebaseAuth.instance.currentUser;
   final DatabaseService _dbService = DatabaseService();
 
+  // Reklam Değişkenleri
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  final String _adUnitId = 'ca-app-pub-4939596189180370/7344864164';
+
   // Filtre state'leri
   String _selectedAnimalType = '';
   String _selectedAdType = '';
+  final TextEditingController _cityFilterController = TextEditingController();
+  final TextEditingController _districtFilterController = TextEditingController();
 
   // Son ilanlar
   List<Ad> _recentAds = [];
@@ -37,6 +48,34 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadRecentAds();
+    _loadBannerAd();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    _cityFilterController.dispose();
+    _districtFilterController.dispose();
+    super.dispose();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: _adUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          print('Banner reklam yüklenemedi: $err');
+          ad.dispose();
+        },
+      ),
+    )..load();
   }
 
   Future<void> _loadRecentAds() async {
@@ -64,24 +103,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _performFilteredSearch() {
-    if (_selectedAnimalType.isNotEmpty || _selectedAdType.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AdsListPage(
-            filterType: _selectedAdType,
-            filterAnimal: _selectedAnimalType,
-          ),
+    final city = _cityFilterController.text.trim();
+    final district = _districtFilterController.text.trim();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdsListPage(
+          filterType: _selectedAdType,
+          filterAnimal: _selectedAnimalType,
+          filterCity: city,
+          filterDistrict: district,
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lütfen en az bir filtre seçin'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    }
+      ),
+    );
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedAnimalType = '';
+      _selectedAdType = '';
+      _cityFilterController.clear();
+      _districtFilterController.clear();
+    });
   }
 
   Future<void> _refreshData() async {
@@ -110,7 +153,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Icons.pets, color: Colors.white),
             SizedBox(width: 10),
-            Text('PetLumo', style: TextStyle(
+            Text(AppLocalizations.of(context)!.appTitle, style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 20,
@@ -123,7 +166,7 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _refreshData,
-            tooltip: 'Yenile',
+            tooltip: AppLocalizations.of(context)!.viewAll,
           ),
         ],
       ),
@@ -163,12 +206,12 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Hoş Geldiniz,', style: TextStyle(
+                          Text(AppLocalizations.of(context)!.welcome + ',', style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
                           )),
                           Text(
-                            _currentUser?.displayName ?? _currentUser?.email?.split('@').first ?? 'Misafir',
+                            _currentUser?.displayName ?? _currentUser?.email?.split('@').first ?? AppLocalizations.of(context)!.guest,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -199,8 +242,6 @@ class _HomePageState extends State<HomePage> {
                             );
                           },
                         ),
-                        SizedBox(height: 4),
-                        Text('QR', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
                       ],
                     ),
                   ],
@@ -214,15 +255,20 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Filtreler', style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.blue[800],
-                    )),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(AppLocalizations.of(context)!.filters, style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.blue[800],
+                        )),
+                      ],
+                    ),
                     SizedBox(height: 15),
 
                     // Hayvan Cinsi Filtresi
-                    Text('Hayvan Cinsi', style: TextStyle(
+                    Text(AppLocalizations.of(context)!.animalType, style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                       color: Colors.grey[700],
@@ -233,7 +279,7 @@ class _HomePageState extends State<HomePage> {
                       child: Row(
                         children: [
                           FilterChip(
-                            label: Text('Köpek'),
+                            label: Text(AppLocalizations.of(context)!.dog),
                             selected: _selectedAnimalType == 'Köpek',
                             selectedColor: Colors.blue[100],
                             checkmarkColor: Colors.blue[800],
@@ -245,7 +291,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           SizedBox(width: 8),
                           FilterChip(
-                            label: Text('Kedi'),
+                            label: Text(AppLocalizations.of(context)!.cat),
                             selected: _selectedAnimalType == 'Kedi',
                             selectedColor: Colors.blue[100],
                             checkmarkColor: Colors.blue[800],
@@ -257,7 +303,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           SizedBox(width: 8),
                           FilterChip(
-                            label: Text('Kuş'),
+                            label: Text(AppLocalizations.of(context)!.bird),
                             selected: _selectedAnimalType == 'Kuş',
                             selectedColor: Colors.blue[100],
                             checkmarkColor: Colors.blue[800],
@@ -269,7 +315,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           SizedBox(width: 8),
                           FilterChip(
-                            label: Text('Diğer'),
+                            label: Text(AppLocalizations.of(context)!.other),
                             selected: _selectedAnimalType == 'Diğer',
                             selectedColor: Colors.blue[100],
                             checkmarkColor: Colors.blue[800],
@@ -281,7 +327,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           SizedBox(width: 8),
                           FilterChip(
-                            label: Text('Tümü'),
+                            label: Text(AppLocalizations.of(context)!.all),
                             selected: _selectedAnimalType == '',
                             selectedColor: Colors.grey[100],
                             checkmarkColor: Colors.grey[800],
@@ -297,7 +343,7 @@ class _HomePageState extends State<HomePage> {
                     SizedBox(height: 20),
 
                     // İlan Tipi Filtresi
-                    Text('İlan Tipi', style: TextStyle(
+                    Text(AppLocalizations.of(context)!.adType, style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                       color: Colors.grey[700],
@@ -308,7 +354,7 @@ class _HomePageState extends State<HomePage> {
                       child: Row(
                         children: [
                           FilterChip(
-                            label: Text('Çiftleştirme'),
+                            label: Text(AppLocalizations.of(context)!.mating),
                             selected: _selectedAdType == 'Çiftleştirme',
                             selectedColor: Colors.pink[100],
                             checkmarkColor: Colors.pink[800],
@@ -320,7 +366,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           SizedBox(width: 8),
                           FilterChip(
-                            label: Text('Sahiplendirme'),
+                            label: Text(AppLocalizations.of(context)!.adoption),
                             selected: _selectedAdType == 'Sahiplendirme',
                             selectedColor: Colors.green[100],
                             checkmarkColor: Colors.green[800],
@@ -332,7 +378,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           SizedBox(width: 8),
                           FilterChip(
-                            label: Text('Tümü'),
+                            label: Text(AppLocalizations.of(context)!.all),
                             selected: _selectedAdType == '',
                             selectedColor: Colors.grey[100],
                             checkmarkColor: Colors.grey[800],
@@ -346,23 +392,87 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
 
-                    // Filtre Uygula Butonu
                     SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _performFilteredSearch,
-                        icon: Icon(Icons.filter_alt, size: 18),
-                        label: Text('Filtrele ve Göster'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[800],
-                          padding: EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+
+                    // İl / İlçe Filtresi
+                    Text(AppLocalizations.of(context)!.filterByLocation, style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    )),
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _cityFilterController,
+                            decoration: InputDecoration(
+                              labelText: AppLocalizations.of(context)!.city,
+                              hintText: AppLocalizations.of(context)!.enterCity,
+                              prefixIcon: Icon(Icons.location_city, color: Colors.blue[700], size: 20),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                              contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                            ),
                           ),
-                          elevation: 2,
                         ),
-                      ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _districtFilterController,
+                            decoration: InputDecoration(
+                              labelText: AppLocalizations.of(context)!.district,
+                              hintText: AppLocalizations.of(context)!.enterDistrict,
+                              prefixIcon: Icon(Icons.location_on, color: Colors.blue[700], size: 20),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                              contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Filtre Butonları
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: ElevatedButton.icon(
+                            onPressed: _performFilteredSearch,
+                            icon: Icon(Icons.search, size: 18),
+                            label: Text(AppLocalizations.of(context)!.filterAndShow),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue[800],
+                              padding: EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 2,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: OutlinedButton.icon(
+                            onPressed: _clearAllFilters,
+                            icon: Icon(Icons.clear, size: 18),
+                            label: Text(AppLocalizations.of(context)!.clearFilters),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue[800],
+                              side: BorderSide(color: Colors.blue[800]!),
+                              padding: EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -375,7 +485,7 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Hızlı Erişim', style: TextStyle(
+                    Text(AppLocalizations.of(context)!.ads, style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                       color: Colors.blue[800],
@@ -391,13 +501,13 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         QuickAccessButton(
                           icon: Icons.add_circle,
-                          label: 'İlan Ver',
+                          label: AppLocalizations.of(context)!.createAd,
                           color: Colors.blue[800]!,
                           onTap: _handleCreateAd,
                         ),
                         QuickAccessButton(
                           icon: Icons.favorite,
-                          label: 'Çiftleştirme',
+                          label: AppLocalizations.of(context)!.mating,
                           color: Colors.pink[700]!,
                           onTap: () {
                             Navigator.push(
@@ -408,7 +518,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         QuickAccessButton(
                           icon: Icons.home,
-                          label: 'Sahiplendirme',
+                          label: AppLocalizations.of(context)!.adoption,
                           color: Colors.green[700]!,
                           onTap: () {
                             Navigator.push(
@@ -419,7 +529,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         QuickAccessButton(
                           icon: Icons.list,
-                          label: 'Tüm İlanlar',
+                          label: AppLocalizations.of(context)!.allAds,
                           color: Colors.orange[700]!,
                           onTap: () {
                             Navigator.push(
@@ -435,7 +545,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         QuickAccessButton(
                           icon: Icons.person,
-                          label: 'Profilim',
+                          label: AppLocalizations.of(context)!.profile,
                           color: Colors.purple[700]!,
                           onTap: () {
                             Navigator.push(
@@ -451,7 +561,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         QuickAccessButton(
                           icon: Icons.business,
-                          label: 'İşletmeler',
+                          label: AppLocalizations.of(context)!.businesses,
                           color: Colors.indigo[700]!,
                           onTap: () {
                             Navigator.push(
@@ -462,7 +572,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         QuickAccessButton(
                           icon: Icons.settings,
-                          label: 'Ayarlar',
+                          label: AppLocalizations.of(context)!.settings,
                           color: Colors.grey[700]!,
                           onTap: () {
                             Navigator.push(
@@ -487,7 +597,7 @@ class _HomePageState extends State<HomePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Son İlanlar', style: TextStyle(
+                        Text(AppLocalizations.of(context)!.recentAds, style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                           color: Colors.blue[800],
@@ -518,7 +628,7 @@ class _HomePageState extends State<HomePage> {
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: Text('Tümünü Gör', style: TextStyle(
+                              child: Text(AppLocalizations.of(context)!.viewAll, style: TextStyle(
                                 color: Colors.blue[600],
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -552,6 +662,15 @@ class _HomePageState extends State<HomePage> {
         tooltip: 'Hızlı İlan Ver',
         elevation: 4,
       ),
+      bottomNavigationBar: _isBannerAdLoaded && _bannerAd != null
+          ? SafeArea(
+              child: SizedBox(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            )
+          : null,
     );
   }
 
@@ -588,7 +707,7 @@ class _HomePageState extends State<HomePage> {
             Icon(Icons.pets, size: 60, color: Colors.grey[300]),
             SizedBox(height: 10),
             Text(
-              'Henüz ilan yok',
+              AppLocalizations.of(context)!.noAdsFound,
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[500],
@@ -611,7 +730,7 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: Text('İlk İlanı Ver'),
+              child: Text(AppLocalizations.of(context)!.createAd),
             ),
           ],
         ),

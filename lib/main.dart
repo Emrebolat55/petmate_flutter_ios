@@ -9,6 +9,13 @@ import 'home_page.dart';
 import 'create_ad_page.dart';
 import 'profile_page.dart';
 import 'businesses_page.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'dart:io';
+import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:petmate_flutter/l10n/generated/app_localizations.dart';
+import 'providers/locale_provider.dart';
 
 // Global hata değişkenleri
 bool _showError = false;
@@ -16,6 +23,7 @@ String _errorMessage = '';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await MobileAds.instance.initialize();
 
   print('🚀 PetMate uygulaması başlatılıyor...');
 
@@ -57,6 +65,24 @@ Future<void> main() async {
   // 🆕 EDGE-TO-EDGE MODUNU AKTİF ET
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
+  // 💎 REVENUECAT BAŞLATMA ALANI
+  try {
+    if (Platform.isAndroid) {
+      await Purchases.setLogLevel(LogLevel.debug);
+      PurchasesConfiguration configuration = PurchasesConfiguration('goog_trMjQauetHCsCtMVTHLVCbjfkKP');
+      await Purchases.configure(configuration);
+      print('✅ RevenueCat başarıyla başlatıldı');
+      
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await Purchases.logIn(user.uid);
+        print('✅ RevenueCat kullanıcı girişi yapıldı: ${user.uid}');
+      }
+    }
+  } catch (e) {
+    print('⚠️ RevenueCat başlatılamadı: $e');
+  }
+
   // 🆕 SİSTEM ÇUBUKLARININ RENKLERİNİ AYARLA (İsteğe bağlı)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -67,7 +93,14 @@ Future<void> main() async {
     ),
   );
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -75,8 +108,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localeProvider = Provider.of<LocaleProvider>(context);
+
     return MaterialApp(
       title: 'PetMate - Evcil Hayvan Platformu',
+      locale: localeProvider.locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('tr'),
+        Locale('en'),
+        Locale('de'),
+      ],
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,

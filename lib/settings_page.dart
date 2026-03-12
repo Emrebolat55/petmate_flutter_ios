@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import 'package:petmate_flutter/l10n/generated/app_localizations.dart';
+import 'providers/locale_provider.dart';
+import 'login_page.dart';
 
 class SettingsPage extends StatefulWidget {
   @override
@@ -13,26 +17,15 @@ class _SettingsPageState extends State<SettingsPage> {
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
 
   bool _notificationsEnabled = true;
-  bool _darkMode = false;
   bool _locationEnabled = true;
   bool _autoLogin = true;
 
-  String _selectedLanguage = 'Türkçe';
-  final List<String> _languages = ['Türkçe', 'English', 'Deutsch', 'Français'];
-
-  String _selectedDistance = '10 km';
-  final List<String> _distances = ['5 km', '10 km', '25 km', '50 km', '100 km'];
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserSettings();
-    _applyDarkMode();
-  }
-
-  void _applyDarkMode() {
-    // Karanlık mod uygulama tema ayarı
-    // Gerçek uygulamada ThemeProvider kullanılması önerilir
   }
 
   Future<void> _loadUserSettings() async {
@@ -46,14 +39,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
         if (snapshot.exists) {
           Map<dynamic, dynamic> data = snapshot.value as Map<dynamic, dynamic>;
-
           setState(() {
             _notificationsEnabled = data['notifications'] ?? true;
-            _darkMode = data['darkMode'] ?? false;
             _locationEnabled = data['location'] ?? true;
             _autoLogin = data['autoLogin'] ?? true;
-            _selectedLanguage = data['language'] ?? 'Türkçe';
-            _selectedDistance = data['distance'] ?? '10 km';
           });
         }
       } catch (e) {
@@ -63,7 +52,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveSettings() async {
+    final loc = AppLocalizations.of(context)!;
     if (_currentUser != null) {
+      setState(() => _isSaving = true);
       try {
         await _database
             .child('users')
@@ -71,32 +62,32 @@ class _SettingsPageState extends State<SettingsPage> {
             .child('settings')
             .update({
           'notifications': _notificationsEnabled,
-          'darkMode': _darkMode,
           'location': _locationEnabled,
           'autoLogin': _autoLogin,
-          'language': _selectedLanguage,
-          'distance': _selectedDistance,
           'updatedAt': DateTime.now().toIso8601String(),
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ayarlar kaydedildi'),
+            content: Text(loc.settingsSaved),
             backgroundColor: Colors.green,
           ),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ayarlar kaydedilirken hata oluştu: $e'),
+            content: Text('${loc.settingsError}: $e'),
             backgroundColor: Colors.red,
           ),
         );
+      } finally {
+        setState(() => _isSaving = false);
       }
     }
   }
 
   Future<void> _updateProfile() async {
+    final loc = AppLocalizations.of(context)!;
     final TextEditingController nameController = TextEditingController(
       text: _currentUser?.displayName ?? '',
     );
@@ -104,28 +95,42 @@ class _SettingsPageState extends State<SettingsPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Profili Düzenle'),
+        title: Text(loc.editProfile),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
               decoration: InputDecoration(
-                labelText: 'Ad Soyad',
+                labelText: loc.fullName,
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
               ),
             ),
-            SizedBox(height: 20),
-            Text(
-              'E-posta: ${_currentUser?.email ?? ''}',
-              style: TextStyle(color: Colors.grey),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.email, color: Colors.grey),
+                  SizedBox(width: 8),
+                  Text(
+                    _currentUser?.email ?? '',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('İptal'),
+            child: Text(loc.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -138,25 +143,24 @@ class _SettingsPageState extends State<SettingsPage> {
                   'name': nameController.text,
                   'updatedAt': DateTime.now().toIso8601String(),
                 });
-
                 setState(() {});
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Profil güncellendi'),
+                    content: Text(loc.profileUpdated),
                     backgroundColor: Colors.green,
                   ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Güncelleme hatası: $e'),
+                    content: Text('${loc.updateError}: $e'),
                     backgroundColor: Colors.red,
                   ),
                 );
               }
             },
-            child: Text('Kaydet'),
+            child: Text(loc.save),
           ),
         ],
       ),
@@ -164,27 +168,30 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _changePassword() async {
-    final TextEditingController controller = TextEditingController();
+    final loc = AppLocalizations.of(context)!;
+    final TextEditingController currentPassController = TextEditingController();
+    final TextEditingController newPassController = TextEditingController();
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Şifre Değiştir'),
+        title: Text(loc.changePassword),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: controller,
+              controller: newPassController,
               decoration: InputDecoration(
-                labelText: 'Yeni Şifre',
+                labelText: loc.newPassword,
                 border: OutlineInputBorder(),
-                hintText: 'En az 6 karakter',
+                hintText: loc.minChars,
+                prefixIcon: Icon(Icons.lock),
               ),
               obscureText: true,
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 8),
             Text(
-              'Şifreniz en az 6 karakter uzunluğunda olmalıdır.',
+              loc.passwordHint,
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -192,43 +199,39 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('İptal'),
+            child: Text(loc.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
-              if (controller.text.length < 6) {
+              if (newPassController.text.length < 6) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Şifre en az 6 karakter olmalı'),
+                    content: Text(loc.passwordTooShort),
                     backgroundColor: Colors.red,
                   ),
                 );
                 return;
               }
-
               try {
-                await _currentUser?.updatePassword(controller.text);
+                await _currentUser?.updatePassword(newPassController.text);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Şifre başarıyla değiştirildi'),
+                    content: Text(loc.passwordChanged),
                     backgroundColor: Colors.green,
                   ),
                 );
               } on FirebaseAuthException catch (e) {
-                String message = 'Şifre değiştirme hatası';
+                String message = loc.passwordChangeError;
                 if (e.code == 'requires-recent-login') {
-                  message = 'Lütfen tekrar giriş yapın';
+                  message = loc.reloginRequired;
                 }
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                    backgroundColor: Colors.red,
-                  ),
+                  SnackBar(content: Text(message), backgroundColor: Colors.red),
                 );
               }
             },
-            child: Text('Değiştir'),
+            child: Text(loc.change),
           ),
         ],
       ),
@@ -236,6 +239,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _changeEmail() async {
+    final loc = AppLocalizations.of(context)!;
     final TextEditingController controller = TextEditingController(
       text: _currentUser?.email ?? '',
     );
@@ -243,22 +247,23 @@ class _SettingsPageState extends State<SettingsPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('E-posta Değiştir'),
+        title: Text(loc.changeEmail),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: controller,
               decoration: InputDecoration(
-                labelText: 'Yeni E-posta',
+                labelText: loc.newEmail,
                 border: OutlineInputBorder(),
-                hintText: 'ornek@email.com',
+                hintText: 'example@email.com',
+                prefixIcon: Icon(Icons.email),
               ),
               keyboardType: TextInputType.emailAddress,
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 8),
             Text(
-              'E-posta değişikliği için doğrulama e-postası gönderilecektir.',
+              loc.emailVerificationNote,
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -266,7 +271,7 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('İptal'),
+            child: Text(loc.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -275,28 +280,24 @@ class _SettingsPageState extends State<SettingsPage> {
                 await _database
                     .child('users')
                     .child(_currentUser!.uid)
-                    .update({
-                  'email': controller.text,
-                  'updatedAt': DateTime.now().toIso8601String(),
-                });
-
+                    .update({'email': controller.text});
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Doğrulama e-postası gönderildi'),
+                    content: Text(loc.verificationSent),
                     backgroundColor: Colors.green,
                   ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('E-posta değiştirme hatası: $e'),
+                    content: Text('${loc.emailChangeError}: $e'),
                     backgroundColor: Colors.red,
                   ),
                 );
               }
             },
-            child: Text('Değiştir'),
+            child: Text(loc.change),
           ),
         ],
       ),
@@ -304,50 +305,44 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _deleteAccount() async {
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Hesabı Sil'),
-        content: Text(
-            'Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.'),
+        title: Text(loc.deleteAccount),
+        content: Text(loc.deleteAccountConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('İptal'),
+            child: Text(loc.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              // Ekstra doğrulama
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: Text('Son Uyarı'),
-                  content: Text(
-                      'Tüm ilanlarınız, mesajlarınız ve verileriniz silinecektir. Devam etmek istiyor musunuz?'),
+                  title: Text(loc.lastWarning),
+                  content: Text(loc.deleteAccountWarning),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Hayır'),
+                      child: Text(loc.no),
                     ),
                     ElevatedButton(
                       onPressed: () async {
                         Navigator.pop(context);
                         await _performAccountDeletion();
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                      child: Text('Evet, Sil'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: Text(loc.yesDelete),
                     ),
                   ],
                 ),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: Text('Hesabı Sil'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(loc.deleteAccount),
           ),
         ],
       ),
@@ -355,37 +350,27 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _performAccountDeletion() async {
+    final loc = AppLocalizations.of(context)!;
     try {
-      // Önce Firebase Database'den kullanıcı verilerini sil
       await _database.child('users').child(_currentUser!.uid).remove();
-
-      // Firebase Auth'dan kullanıcıyı sil
       await _currentUser?.delete();
-
-      // Başarılı silme sonrası anasayfaya yönlendir
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Hesabınız başarıyla silindi'),
-          backgroundColor: Colors.green,
-        ),
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
-      String message = 'Hesap silme hatası';
+      String message = loc.accountDeleteError;
       if (e.code == 'requires-recent-login') {
-        message = 'Lütfen tekrar giriş yapıp tekrar deneyin';
+        message = loc.reloginRequiredDelete;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$message: ${e.message}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('$message: ${e.message}'), backgroundColor: Colors.red),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Hesap silinirken hata oluştu: $e'),
+          content: Text('${AppLocalizations.of(context)!.accountDeleteFailed}: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -393,12 +378,13 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _launchURL(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Bağlantı açılamadı'),
+          content: Text(AppLocalizations.of(context)!.cannotOpenLink),
           backgroundColor: Colors.red,
         ),
       );
@@ -406,27 +392,27 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _rateApp() async {
-    // Play Store ve App Store bağlantıları
-    const String appId = 'com.example.petmate';
-    const String playStoreUrl = 'https://play.google.com/store/apps/details?id=$appId';
-    const String appStoreUrl = 'https://apps.apple.com/app/id$appId';
+    final loc = AppLocalizations.of(context)!;
+    const String appId = 'com.bolatsoft.petmate';
+    const String playStoreUrl =
+        'https://play.google.com/store/apps/details?id=$appId';
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Uygulamayı Değerlendir'),
-        content: Text('Uygulamayı değerlendirmek için mağazaya yönlendirileceksiniz.'),
+        title: Text(loc.rateApp),
+        content: Text(loc.rateAppContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('İptal'),
+            child: Text(loc.cancel),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _launchURL(playStoreUrl); // Varsayılan olarak Play Store
+              _launchURL(playStoreUrl);
             },
-            child: Text('Değerlendir'),
+            child: Text(loc.rate),
           ),
         ],
       ),
@@ -434,16 +420,35 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showHelpSupport() {
+    final loc = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Container(
         padding: EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text(loc.helpSupport,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 12),
             ListTile(
-              leading: Icon(Icons.email, color: Colors.blue),
-              title: Text('E-posta ile Destek'),
+              leading: CircleAvatar(
+                backgroundColor: Colors.blue[50],
+                child: Icon(Icons.email, color: Colors.blue),
+              ),
+              title: Text(loc.emailSupport),
               subtitle: Text('destek@petmate.com'),
               onTap: () {
                 Navigator.pop(context);
@@ -451,8 +456,11 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.phone, color: Colors.green),
-              title: Text('Telefon ile Destek'),
+              leading: CircleAvatar(
+                backgroundColor: Colors.green[50],
+                child: Icon(Icons.phone, color: Colors.green),
+              ),
+              title: Text(loc.phoneSupport),
               subtitle: Text('+90 555 123 4567'),
               onTap: () {
                 Navigator.pop(context);
@@ -460,21 +468,15 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.chat, color: Colors.purple),
-              title: Text('Canlı Destek'),
-              subtitle: Text('Hafta içi 09:00-18:00'),
+              leading: CircleAvatar(
+                backgroundColor: Colors.orange[50],
+                child: Icon(Icons.question_answer, color: Colors.orange),
+              ),
+              title: Text(loc.faq),
+              subtitle: Text(loc.faqSubtitle),
               onTap: () {
                 Navigator.pop(context);
-                // Canlı destek sayfasına yönlendir
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.question_answer, color: Colors.orange),
-              title: Text('SSS'),
-              subtitle: Text('Sıkça Sorulan Sorular'),
-              onTap: () {
-                Navigator.pop(context);
-                // SSS sayfasına yönlendir
+                _launchURL('https://petmate.com/faq');
               },
             ),
           ],
@@ -484,29 +486,21 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showPrivacyPolicy() {
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Gizlilik Politikası'),
+        title: Text(loc.privacyPolicy),
         content: SingleChildScrollView(
           child: Text(
-            '1. Kişisel Verilerin Toplanması\n'
-                'Uygulamamız kullanıcı deneyimini iyileştirmek için sınırlı kişisel veri toplar.\n\n'
-                '2. Veri Kullanımı\n'
-                'Toplanan veriler sadece hizmet sunmak ve geliştirmek için kullanılır.\n\n'
-                '3. Veri Paylaşımı\n'
-                'Kişisel verileriniz üçüncü taraflarla paylaşılmaz.\n\n'
-                '4. Güvenlik\n'
-                'Verileriniz güvenli bir şekilde saklanır.\n\n'
-                '5. Haklarınız\n'
-                'Verilerinizi görüntüleme, düzeltme ve silme hakkına sahipsiniz.',
-            style: TextStyle(fontSize: 14),
+            loc.privacyPolicyContent,
+            style: TextStyle(fontSize: 14, height: 1.6),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Kapat'),
+            child: Text(loc.close),
           ),
         ],
       ),
@@ -514,29 +508,113 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showTermsConditions() {
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Kullanım Koşulları'),
+        title: Text(loc.termsConditions),
         content: SingleChildScrollView(
           child: Text(
-            '1. Kullanım Şartları\n'
-                'Bu uygulamayı kullanarak aşağıdaki şartları kabul etmiş sayılırsınız.\n\n'
-                '2. Hesap Sorumluluğu\n'
-                'Hesabınızın güvenliğinden siz sorumlusunuz.\n\n'
-                '3. İçerik Kuralları\n'
-                'Uygunsuz içerik paylaşmak yasaktır.\n\n'
-                '4. Hizmet Kesintileri\n'
-                'Teknik nedenlerle hizmet kesintileri olabilir.\n\n'
-                '5. Değişiklikler\n'
-                'Koşullar zaman zaman güncellenebilir.',
-            style: TextStyle(fontSize: 14),
+            loc.termsContent,
+            style: TextStyle(fontSize: 14, height: 1.6),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Kapat'),
+            child: Text(loc.close),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLanguagePicker() {
+    final loc = AppLocalizations.of(context)!;
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final currentLocale = localeProvider.locale;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(loc.selectLanguage),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildLanguageOption(
+              name: 'Türkçe 🇹🇷',
+              locale: Locale('tr'),
+              currentLocale: currentLocale,
+              onTap: () {
+                localeProvider.setLocale(Locale('tr'));
+                Navigator.pop(context);
+              },
+            ),
+            _buildLanguageOption(
+              name: 'English 🇬🇧',
+              locale: Locale('en'),
+              currentLocale: currentLocale,
+              onTap: () {
+                localeProvider.setLocale(Locale('en'));
+                Navigator.pop(context);
+              },
+            ),
+            _buildLanguageOption(
+              name: 'Deutsch 🇩🇪',
+              locale: Locale('de'),
+              currentLocale: currentLocale,
+              onTap: () {
+                localeProvider.setLocale(Locale('de'));
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageOption({
+    required String name,
+    required Locale locale,
+    required Locale currentLocale,
+    required VoidCallback onTap,
+  }) {
+    final bool isSelected = currentLocale.languageCode == locale.languageCode;
+    return ListTile(
+      title: Text(name),
+      trailing: isSelected
+          ? Icon(Icons.check_circle, color: Colors.blue[800])
+          : Icon(Icons.circle_outlined, color: Colors.grey),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      tileColor: isSelected ? Colors.blue[50] : null,
+    );
+  }
+
+  void _logout() {
+    final loc = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(loc.logout),
+        content: Text(loc.logoutConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(loc.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginPage()),
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(loc.logout),
           ),
         ],
       ),
@@ -545,86 +623,97 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final localeProvider = Provider.of<LocaleProvider>(context);
+
+    final Map<String, String> localeNames = {
+      'tr': 'Türkçe 🇹🇷',
+      'en': 'English 🇬🇧',
+      'de': 'Deutsch 🇩🇪',
+    };
+    final currentLangName = localeNames[localeProvider.locale.languageCode] ?? 'Türkçe';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Ayarlar'),
+        title: Text(loc.settings),
         backgroundColor: Colors.blue[800],
         elevation: 0,
         actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: _saveSettings,
-            tooltip: 'Ayarları Kaydet',
-          ),
+          _isSaving
+              ? Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                )
+              : IconButton(
+                  icon: Icon(Icons.save),
+                  onPressed: _saveSettings,
+                  tooltip: loc.saveSettings,
+                ),
         ],
       ),
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          // Kullanıcı Bilgisi
+          // ─── Kullanıcı Profil Kartı ───
           Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: ListTile(
+              contentPadding: EdgeInsets.all(16),
               leading: CircleAvatar(
+                radius: 28,
                 backgroundColor: Colors.blue[100],
-                child: Icon(Icons.person, color: Colors.blue[800]),
+                child: Icon(Icons.person, color: Colors.blue[800], size: 30),
               ),
               title: Text(
-                _currentUser?.displayName ?? _currentUser?.email?.split('@').first ?? 'Kullanıcı',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                _currentUser?.displayName ??
+                    _currentUser?.email?.split('@').first ??
+                    loc.guest,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              subtitle: Text(_currentUser?.email ?? ''),
-              trailing: Icon(Icons.edit),
+              subtitle: Text(_currentUser?.email ?? loc.noEmail),
+              trailing: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.edit, color: Colors.blue[800]),
+              ),
               onTap: _updateProfile,
             ),
           ),
+
           SizedBox(height: 20),
 
-          // Genel Ayarlar
-          Text('Genel Ayarlar', style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue[800],
-          )),
-          SizedBox(height: 10),
+          // ─── Genel Ayarlar ───
+          _buildSectionHeader(Icons.tune, loc.generalSettings),
+          SizedBox(height: 8),
 
           _buildSettingSwitch(
-            title: 'Bildirimler',
-            subtitle: 'İlan bildirimlerini al',
+            title: loc.notifications,
+            subtitle: loc.notificationsSubtitle,
             value: _notificationsEnabled,
-            icon: Icons.notifications,
-            onChanged: (value) {
-              setState(() => _notificationsEnabled = value);
-            },
+            icon: Icons.notifications_active,
+            iconColor: Colors.orange,
+            onChanged: (value) => setState(() => _notificationsEnabled = value),
           ),
 
           _buildSettingSwitch(
-            title: 'Karanlık Mod',
-            subtitle: 'Karanlık tema kullan',
-            value: _darkMode,
-            icon: Icons.dark_mode,
-            onChanged: (value) {
-              setState(() => _darkMode = value);
-              // Gerçek uygulamada burada ThemeProvider üzerinden tema değişimi yapılır
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Tema değişikliği uygulamayı yeniden başlatınca aktif olacak'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-
-          _buildSettingSwitch(
-            title: 'Konum Servisi',
-            subtitle: 'Konumunuzu kullan',
+            title: loc.locationService,
+            subtitle: loc.locationSubtitle,
             value: _locationEnabled,
             icon: Icons.location_on,
+            iconColor: Colors.green,
             onChanged: (value) {
               setState(() => _locationEnabled = value);
               if (value) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Konum servisi aktif edildi'),
+                    content: Text(loc.locationEnabled),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -633,216 +722,173 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           _buildSettingSwitch(
-            title: 'Otomatik Giriş',
-            subtitle: 'Uygulamaya otomatik giriş yap',
+            title: loc.autoLogin,
+            subtitle: loc.autoLoginSubtitle,
             value: _autoLogin,
             icon: Icons.login,
-            onChanged: (value) {
-              setState(() => _autoLogin = value);
-            },
+            iconColor: Colors.purple,
+            onChanged: (value) => setState(() => _autoLogin = value),
           ),
 
-          // Dil Ayarları
           SizedBox(height: 20),
-          Text('Dil ve Bölge', style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue[800],
-          )),
-          SizedBox(height: 10),
+
+          // ─── Dil Ayarı ───
+          _buildSectionHeader(Icons.language, loc.languageRegion),
+          SizedBox(height: 8),
 
           Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
-              leading: Icon(Icons.language, color: Colors.blue),
-              title: Text('Uygulama Dili'),
-              subtitle: Text(_selectedLanguage),
-              trailing: DropdownButton<String>(
-                value: _selectedLanguage,
-                onChanged: (value) {
-                  setState(() => _selectedLanguage = value!);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Dil değişikliği uygulamayı yeniden başlatınca aktif olacak'),
-                    ),
-                  );
-                },
-                items: _languages.map((language) {
-                  return DropdownMenuItem(
-                    value: language,
-                    child: Text(language),
-                  );
-                }).toList(),
+              leading: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.language, color: Colors.blue[800]),
               ),
+              title: Text(loc.appLanguage),
+              subtitle: Text(currentLangName),
+              trailing: Icon(Icons.chevron_right, color: Colors.blue[800]),
+              onTap: _showLanguagePicker,
             ),
           ),
 
-          // Konum Ayarları
           SizedBox(height: 20),
-          Text('Konum Ayarları', style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue[800],
-          )),
-          SizedBox(height: 10),
+
+          // ─── Hesap Ayarları ───
+          _buildSectionHeader(Icons.manage_accounts, loc.accountSettings),
+          SizedBox(height: 8),
 
           Card(
-            child: ListTile(
-              leading: Icon(Icons.place, color: Colors.green),
-              title: Text('Görüntüleme Mesafesi'),
-              subtitle: Text('İlanları göster'),
-              trailing: DropdownButton<String>(
-                value: _selectedDistance,
-                onChanged: (value) {
-                  setState(() => _selectedDistance = value!);
-                },
-                items: _distances.map((distance) {
-                  return DropdownMenuItem(
-                    value: distance,
-                    child: Text(distance),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-
-          // Hesap Ayarları
-          SizedBox(height: 20),
-          Text('Hesap Ayarları', style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue[800],
-          )),
-          SizedBox(height: 10),
-
-          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Column(
               children: [
-                ListTile(
-                  leading: Icon(Icons.lock, color: Colors.orange),
-                  title: Text('Şifre Değiştir'),
-                  trailing: Icon(Icons.chevron_right),
+                _buildActionTile(
+                  icon: Icons.lock,
+                  iconColor: Colors.orange,
+                  title: loc.changePassword,
                   onTap: _changePassword,
                 ),
-                Divider(height: 0),
-                ListTile(
-                  leading: Icon(Icons.email, color: Colors.blue),
-                  title: Text('E-posta Değiştir'),
-                  trailing: Icon(Icons.chevron_right),
+                Divider(height: 1, indent: 72),
+                _buildActionTile(
+                  icon: Icons.email,
+                  iconColor: Colors.blue,
+                  title: loc.changeEmail,
                   onTap: _changeEmail,
                 ),
-                Divider(height: 0),
-                ListTile(
-                  leading: Icon(Icons.delete, color: Colors.red),
-                  title: Text('Hesabı Sil'),
-                  trailing: Icon(Icons.chevron_right),
+                Divider(height: 1, indent: 72),
+                _buildActionTile(
+                  icon: Icons.delete_forever,
+                  iconColor: Colors.red,
+                  title: loc.deleteAccount,
                   onTap: _deleteAccount,
+                  titleColor: Colors.red,
                 ),
               ],
             ),
           ),
 
-          // Hakkında
           SizedBox(height: 20),
-          Text('Hakkında', style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue[800],
-          )),
-          SizedBox(height: 10),
+
+          // ─── Hakkında ───
+          _buildSectionHeader(Icons.info_outline, loc.about),
+          SizedBox(height: 8),
 
           Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Column(
               children: [
-                ListTile(
-                  leading: Icon(Icons.info, color: Colors.grey),
-                  title: Text('Sürüm'),
-                  subtitle: Text('1.0.0'),
+                _buildActionTile(
+                  icon: Icons.verified,
+                  iconColor: Colors.grey,
+                  title: loc.version,
+                  trailing: Text(
+                    '1.0.0',
+                    style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () {},
                 ),
-                Divider(height: 0),
-                ListTile(
-                  leading: Icon(Icons.description, color: Colors.grey),
-                  title: Text('Gizlilik Politikası'),
-                  trailing: Icon(Icons.chevron_right),
+                Divider(height: 1, indent: 72),
+                _buildActionTile(
+                  icon: Icons.privacy_tip,
+                  iconColor: Colors.blue,
+                  title: loc.privacyPolicy,
                   onTap: _showPrivacyPolicy,
                 ),
-                Divider(height: 0),
-                ListTile(
-                  leading: Icon(Icons.description, color: Colors.grey),
-                  title: Text('Kullanım Koşulları'),
-                  trailing: Icon(Icons.chevron_right),
+                Divider(height: 1, indent: 72),
+                _buildActionTile(
+                  icon: Icons.description,
+                  iconColor: Colors.teal,
+                  title: loc.termsConditions,
                   onTap: _showTermsConditions,
                 ),
-                Divider(height: 0),
-                ListTile(
-                  leading: Icon(Icons.help, color: Colors.grey),
-                  title: Text('Yardım ve Destek'),
-                  trailing: Icon(Icons.chevron_right),
+                Divider(height: 1, indent: 72),
+                _buildActionTile(
+                  icon: Icons.help_outline,
+                  iconColor: Colors.purple,
+                  title: loc.helpSupport,
                   onTap: _showHelpSupport,
                 ),
-                Divider(height: 0),
-                ListTile(
-                  leading: Icon(Icons.star, color: Colors.yellow),
-                  title: Text('Uygulamayı Değerlendir'),
-                  trailing: Icon(Icons.chevron_right),
+                Divider(height: 1, indent: 72),
+                _buildActionTile(
+                  icon: Icons.star_rate,
+                  iconColor: Colors.amber,
+                  title: loc.rateApp,
                   onTap: _rateApp,
                 ),
               ],
             ),
           ),
 
-          // Çıkış Yap
           SizedBox(height: 30),
+
+          // ─── Çıkış Yap ───
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text('Çıkış Yap'),
-                    content: Text('Çıkış yapmak istediğinize emin misiniz?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text('İptal'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                          Navigator.pushNamedAndRemoveUntil(
-                              context, '/', (route) => false);
-                        },
-                        child: Text('Çıkış Yap'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              onPressed: _logout,
               icon: Icon(Icons.logout),
-              label: Text('Çıkış Yap'),
+              label: Text(loc.logout,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red[800],
                 padding: EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
           ),
+
           SizedBox(height: 20),
 
-          // Versiyon
           Center(
             child: Text(
               'PetMate v1.0.0',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
           ),
+          SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.blue[800]),
+        SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[800],
+          ),
+        ),
+      ],
     );
   }
 
@@ -851,17 +897,56 @@ class _SettingsPageState extends State<SettingsPage> {
     required String subtitle,
     required bool value,
     required IconData icon,
+    required Color iconColor,
     required Function(bool) onChanged,
   }) {
     return Card(
       margin: EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SwitchListTile(
-        title: Text(title),
-        subtitle: Text(subtitle),
-        secondary: Icon(icon, color: Colors.blue),
+        title: Text(title, style: TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 12)),
+        secondary: Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: iconColor, size: 22),
+        ),
         value: value,
         onChanged: onChanged,
+        activeColor: Colors.blue[800],
       ),
+    );
+  }
+
+  Widget _buildActionTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required VoidCallback onTap,
+    Color? titleColor,
+    Widget? trailing,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: titleColor,
+        ),
+      ),
+      trailing: trailing ?? Icon(Icons.chevron_right, color: Colors.grey),
+      onTap: onTap,
     );
   }
 }

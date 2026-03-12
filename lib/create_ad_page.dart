@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import '../services/database_service.dart';
+import 'package:petmate_flutter/l10n/generated/app_localizations.dart';
 
 class CreateAdPage extends StatefulWidget {
   @override
@@ -42,19 +46,20 @@ class _CreateAdPageState extends State<CreateAdPage> {
   String? _errorMessage;
   String? _successMessage;
 
-  final List<String> _animalTypes = ['Köpek', 'Kedi', 'Kuş', 'Diğer'];
-  final List<String> _genders = ['Erkek', 'Dişi'];
-  final List<String> _adTypes = ['Sahiplendirme', 'Çiftleştirme'];
+  // Reklam Değişkenleri
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  final String _adUnitId = 'ca-app-pub-4939596189180370/7319719528';
 
   @override
   void initState() {
     super.initState();
-    print('🚀 CreateAdPage başlatıldı');
-    print('👤 Kullanıcı ID: ${_currentUser?.uid ?? 'Giriş yapılmamış'}');
+    _loadBannerAd();
   }
 
   @override
   void dispose() {
+    _bannerAd?.dispose();
     _animalNameController.dispose();
     _animalBreedController.dispose();
     _animalAgeController.dispose();
@@ -68,7 +73,24 @@ class _CreateAdPageState extends State<CreateAdPage> {
     super.dispose();
   }
 
-  // RESİM SEÇ
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: _adUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -82,21 +104,18 @@ class _CreateAdPageState extends State<CreateAdPage> {
         final file = File(pickedFile.path);
         if (await file.exists()) {
           final bytes = await file.readAsBytes();
-
           setState(() {
             _selectedImageFile = file;
             _imageBytes = bytes;
           });
-
-          _showMessage('✅ Resim seçildi', Colors.green);
+          _showMessage('✅ ${AppLocalizations.of(context)!.imageSelected}', Colors.green);
         }
       }
     } catch (e) {
-      _showMessage('Resim seçilemedi', Colors.red);
+      _showMessage(AppLocalizations.of(context)!.imageError, Colors.red);
     }
   }
 
-  // KAMERADAN RESİM ÇEK
   Future<void> _takePhoto() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -110,30 +129,26 @@ class _CreateAdPageState extends State<CreateAdPage> {
         final file = File(pickedFile.path);
         if (await file.exists()) {
           final bytes = await file.readAsBytes();
-
           setState(() {
             _selectedImageFile = file;
             _imageBytes = bytes;
           });
-
-          _showMessage('✅ Fotoğraf çekildi', Colors.green);
+          _showMessage('✅ ${AppLocalizations.of(context)!.photoTaken}', Colors.green);
         }
       }
     } catch (e) {
-      _showMessage('Kamera hatası', Colors.red);
+      _showMessage(AppLocalizations.of(context)!.cameraError, Colors.red);
     }
   }
 
-  // RESİM SİL
   void _removeImage() {
     setState(() {
       _selectedImageFile = null;
       _imageBytes = null;
     });
-    _showMessage('Resim kaldırıldı', Colors.blue);
+    _showMessage(AppLocalizations.of(context)!.imageRemoved, Colors.blue);
   }
 
-  // Telefon formatı
   String _formatPhoneNumber(String phone) {
     phone = phone.replaceAll(RegExp(r'\s+'), '');
     if (!phone.startsWith('0')) {
@@ -142,24 +157,18 @@ class _CreateAdPageState extends State<CreateAdPage> {
     return phone;
   }
 
-  // İLAN KAYDET - DÜZELTİLMİŞ VERSİYON
-  Future<void> _saveAd() async {
-    // Kullanıcı kontrolü
+  Future<void> _checkPremiumAndSaveAd() async {
+    final loc = AppLocalizations.of(context)!;
+
     if (_currentUser == null) {
-      _showMessage('Lütfen giriş yapın', Colors.red);
+      _showMessage(loc.pleaseLogin, Colors.red);
       return;
     }
 
-    // Form validasyonu
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    // Zorunlu alan kontrolü
-    if (_selectedAnimalType == null ||
-        _selectedGender == null ||
-        _selectedAdType == null) {
-      _showMessage('Lütfen tüm seçimleri yapın', Colors.orange);
+    if (_selectedAnimalType == null || _selectedGender == null || _selectedAdType == null) {
+      _showMessage(loc.pleaseSelectAll, Colors.orange);
       return;
     }
 
@@ -170,16 +179,37 @@ class _CreateAdPageState extends State<CreateAdPage> {
     });
 
     try {
-      print('📝 İlan kaydediliyor...');
-      print('👤 UserID: ${_currentUser!.uid}');
+      CustomerInfo customerInfo = await Purchases.getCustomerInfo();
 
-      // Yaş değerini düzenle
+      if (customerInfo.entitlements.all["premium"] != null &&
+          customerInfo.entitlements.all["premium"]!.isActive) {
+        await _performSaveAd();
+      } else {
+        setState(() => _isLoading = false);
+        PaywallResult result = await RevenueCatUI.presentPaywallIfNeeded('premium');
+
+        if (result == PaywallResult.purchased || result == PaywallResult.restored) {
+          setState(() => _isLoading = true);
+          await _performSaveAd();
+        } else {
+          _showMessage(loc.premiumRequired, Colors.blue);
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '${AppLocalizations.of(context)!.paymentError}: $e';
+      });
+      _showMessage(AppLocalizations.of(context)!.subscriptionError, Colors.red);
+    }
+  }
+
+  Future<void> _performSaveAd() async {
+    final loc = AppLocalizations.of(context)!;
+    try {
       String age = _animalAgeController.text.trim();
-
-      // Telefon numarasını formatla
       String phone = _formatPhoneNumber(_phoneController.text.trim());
 
-      // İLANI KAYDET - userId PARAMETRESİ İLE BİRLİKTE!
       final adId = await _dbService.saveAd(
         animalName: _animalNameController.text.trim(),
         animalType: _selectedAnimalType!,
@@ -197,30 +227,28 @@ class _CreateAdPageState extends State<CreateAdPage> {
         vaccinated: _vaccinated,
         imageFile: _selectedImageFile,
         imageBytes: _imageBytes,
-        userId: _currentUser!.uid, // ← BURASI ÇOK ÖNEMLİ!
+        userId: _currentUser!.uid,
       );
 
       print('✅ İlan kaydedildi! ID: $adId');
 
       setState(() {
-        _successMessage = '✅ İlanınız başarıyla yayınlandı!';
+        _successMessage = '✅ ${loc.adPublished}';
         _isLoading = false;
       });
 
-      _showMessage('✅ İlanınız yayınlandı!', Colors.green);
+      _showMessage('✅ ${loc.adPublished}', Colors.green);
 
       await Future.delayed(Duration(seconds: 2));
       if (mounted) {
         Navigator.pop(context, true);
       }
-
     } catch (e) {
-      print('❌ Hata: $e');
       setState(() {
-        _errorMessage = 'İlan kaydedilemedi. Lütfen tekrar deneyin.';
+        _errorMessage = AppLocalizations.of(context)!.adSaveFailed;
         _isLoading = false;
       });
-      _showMessage('Hata oluştu', Colors.red);
+      _showMessage(AppLocalizations.of(context)!.errorOccurred, Colors.red);
     }
   }
 
@@ -236,9 +264,16 @@ class _CreateAdPageState extends State<CreateAdPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
+    // Dile göre seçenek listeleri
+    final List<String> animalTypes = [loc.dog, loc.cat, loc.bird, loc.other];
+    final List<String> genders = [loc.male, loc.female];
+    final List<String> adTypes = [loc.adoption, loc.mating];
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Yeni İlan Oluştur'),
+        title: Text(loc.createAdTitle),
         backgroundColor: Colors.blue[800],
         actions: [
           if (_isLoading)
@@ -255,7 +290,7 @@ class _CreateAdPageState extends State<CreateAdPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // HOŞGELDİN MESAJI
+              // ÜST BANNER
               Container(
                 padding: EdgeInsets.all(16),
                 margin: EdgeInsets.only(bottom: 16),
@@ -276,7 +311,7 @@ class _CreateAdPageState extends State<CreateAdPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'ÜCRETSİZ İLAN',
+                            loc.premiumAd,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -285,11 +320,8 @@ class _CreateAdPageState extends State<CreateAdPage> {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Hemen ilanını oluştur, platformda yerini al!',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white70,
-                            ),
+                            loc.createAdSubtitle,
+                            style: TextStyle(fontSize: 13, color: Colors.white70),
                           ),
                         ],
                       ),
@@ -298,26 +330,23 @@ class _CreateAdPageState extends State<CreateAdPage> {
                 ),
               ),
 
-              // HATA/BAŞARI MESAJLARI
+              // HATA/BAŞARI
               if (_errorMessage != null)
                 _buildMessageCard(_errorMessage!, Colors.red, Icons.error),
-
               if (_successMessage != null)
                 _buildMessageCard(_successMessage!, Colors.green, Icons.check_circle),
 
-              // RESİM YÜKLEME KARTI
+              // RESİM YÜKLEME
               Card(
                 elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '📸 Resim Ekle',
+                        '📸 ${loc.addPhoto}',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -326,11 +355,8 @@ class _CreateAdPageState extends State<CreateAdPage> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Resim eklemek ilanınızın daha çok görüntülenmesini sağlar',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        loc.addPhotoHint,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                       SizedBox(height: 20),
 
@@ -354,13 +380,13 @@ class _CreateAdPageState extends State<CreateAdPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '${(_imageBytes!.length/1024).toStringAsFixed(1)} KB',
+                                  '${(_imageBytes!.length / 1024).toStringAsFixed(1)} KB',
                                   style: TextStyle(color: Colors.grey[700]),
                                 ),
                                 TextButton.icon(
                                   onPressed: _removeImage,
                                   icon: Icon(Icons.delete, color: Colors.red),
-                                  label: Text('Kaldır', style: TextStyle(color: Colors.red)),
+                                  label: Text(loc.remove, style: TextStyle(color: Colors.red)),
                                 ),
                               ],
                             ),
@@ -374,7 +400,7 @@ class _CreateAdPageState extends State<CreateAdPage> {
                               child: ElevatedButton.icon(
                                 onPressed: _pickImage,
                                 icon: Icon(Icons.photo_library),
-                                label: Text('Galeri'),
+                                label: Text(loc.gallery),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blue[100],
                                   foregroundColor: Colors.blue[800],
@@ -386,7 +412,7 @@ class _CreateAdPageState extends State<CreateAdPage> {
                               child: ElevatedButton.icon(
                                 onPressed: _takePhoto,
                                 icon: Icon(Icons.camera_alt),
-                                label: Text('Kamera'),
+                                label: Text(loc.camera),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green[100],
                                   foregroundColor: Colors.green[800],
@@ -402,45 +428,46 @@ class _CreateAdPageState extends State<CreateAdPage> {
 
               SizedBox(height: 20),
 
-              // TEMEL BİLGİLER
+              // HAYVAN BİLGİLERİ
               _buildSectionCard(
-                title: '🐾 Hayvan Bilgileri',
+                title: '🐾 ${loc.animalInfo}',
                 children: [
                   _buildTextField(
                     controller: _animalNameController,
-                    label: 'Hayvanın Adı *',
+                    label: '${loc.animalName} *',
                     icon: Icons.pets,
                     isRequired: true,
                   ),
                   _buildDropdown(
                     value: _selectedAnimalType,
-                    label: 'Hayvan Türü *',
+                    label: '${loc.animalType} *',
                     icon: Icons.category,
-                    items: _animalTypes,
+                    items: animalTypes,
                     onChanged: (value) => setState(() => _selectedAnimalType = value),
                     isRequired: true,
                   ),
                   _buildDropdown(
                     value: _selectedGender,
-                    label: 'Cinsiyet *',
+                    label: '${loc.gender} *',
                     icon: Icons.transgender,
-                    items: _genders,
+                    items: genders,
                     onChanged: (value) => setState(() => _selectedGender = value),
                     isRequired: true,
                   ),
                   _buildTextField(
                     controller: _animalBreedController,
-                    label: 'Irk',
+                    label: loc.breed,
                     icon: Icons.psychology,
                   ),
                   _buildTextField(
                     controller: _animalAgeController,
-                    label: 'Yaş',
+                    label: loc.age,
                     icon: Icons.cake,
+                    keyboardType: TextInputType.number,
                   ),
                   _buildTextField(
                     controller: _animalColorController,
-                    label: 'Renk',
+                    label: loc.color,
                     icon: Icons.color_lens,
                   ),
                 ],
@@ -450,32 +477,32 @@ class _CreateAdPageState extends State<CreateAdPage> {
 
               // İLAN BİLGİLERİ
               _buildSectionCard(
-                title: '📋 İlan Bilgileri',
+                title: '📋 ${loc.adInfo}',
                 children: [
                   _buildDropdown(
                     value: _selectedAdType,
-                    label: 'İlan Türü *',
+                    label: '${loc.adType} *',
                     icon: Icons.type_specimen,
-                    items: _adTypes,
+                    items: adTypes,
                     onChanged: (value) => setState(() => _selectedAdType = value),
                     isRequired: true,
                   ),
                   _buildTextField(
                     controller: _titleController,
-                    label: 'İlan Başlığı *',
+                    label: '${loc.adTitle} *',
                     icon: Icons.title,
                     isRequired: true,
                   ),
                   _buildTextField(
                     controller: _descriptionController,
-                    label: 'Açıklama *',
+                    label: '${loc.description} *',
                     icon: Icons.description,
                     maxLines: 4,
                     isRequired: true,
                   ),
                   _buildTextField(
                     controller: _priceController,
-                    label: 'Fiyat (TL)',
+                    label: '${loc.price} (TL)',
                     icon: Icons.attach_money,
                     keyboardType: TextInputType.number,
                   ),
@@ -486,23 +513,23 @@ class _CreateAdPageState extends State<CreateAdPage> {
 
               // KONUM BİLGİLERİ
               _buildSectionCard(
-                title: '📍 Konum Bilgileri',
+                title: '📍 ${loc.locationInfo}',
                 children: [
                   _buildTextField(
                     controller: _cityController,
-                    label: 'Şehir *',
+                    label: '${loc.city} *',
                     icon: Icons.location_city,
                     isRequired: true,
                   ),
                   _buildTextField(
                     controller: _districtController,
-                    label: 'İlçe *',
+                    label: '${loc.district} *',
                     icon: Icons.location_on,
                     isRequired: true,
                   ),
                   _buildTextField(
                     controller: _phoneController,
-                    label: 'Telefon *',
+                    label: '${loc.phone} *',
                     icon: Icons.phone,
                     keyboardType: TextInputType.phone,
                     isRequired: true,
@@ -514,10 +541,10 @@ class _CreateAdPageState extends State<CreateAdPage> {
 
               // SAĞLIK BİLGİLERİ
               _buildSectionCard(
-                title: '💉 Sağlık Bilgileri',
+                title: '💉 ${loc.healthInfo}',
                 children: [
                   SwitchListTile(
-                    title: Text('Aşıları Tamamlandı'),
+                    title: Text(loc.vaccinated),
                     value: _vaccinated,
                     onChanged: (value) => setState(() => _vaccinated = value),
                     activeColor: Colors.green,
@@ -532,7 +559,7 @@ class _CreateAdPageState extends State<CreateAdPage> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAd,
+                  onPressed: _isLoading ? null : _checkPremiumAndSaveAd,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green[700],
                     shape: RoundedRectangleBorder(
@@ -542,9 +569,9 @@ class _CreateAdPageState extends State<CreateAdPage> {
                   child: _isLoading
                       ? CircularProgressIndicator(color: Colors.white)
                       : Text(
-                    'İLANI ÜCRETSİZ YAYINLA',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                          loc.publishAdPremium,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
 
@@ -560,14 +587,11 @@ class _CreateAdPageState extends State<CreateAdPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info, color: Colors.blue[800]),
+                    Icon(Icons.star, color: Colors.blue[800]),
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        '• İlanlar ücretsiz\n'
-                            '• Telefon: 0 ile başlamalı\n'
-                            '• Resim ekleyin\n'
-                            '• Bilgiler doğru olmalı',
+                        loc.premiumAdInfo,
                         style: TextStyle(color: Colors.blue[800], height: 1.5),
                       ),
                     ),
@@ -580,10 +604,18 @@ class _CreateAdPageState extends State<CreateAdPage> {
           ),
         ),
       ),
+      bottomNavigationBar: _isBannerAdLoaded && _bannerAd != null
+          ? SafeArea(
+              child: SizedBox(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            )
+          : null,
     );
   }
 
-  // YARDIMCI WIDGETLAR
   Widget _buildMessageCard(String message, Color color, IconData icon) {
     return Container(
       padding: EdgeInsets.all(12),
@@ -606,12 +638,18 @@ class _CreateAdPageState extends State<CreateAdPage> {
   Widget _buildSectionCard({required String title, required List<Widget> children}) {
     return Card(
       margin: EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(title,
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[800])),
             SizedBox(height: 16),
             ...children,
           ],
@@ -628,6 +666,7 @@ class _CreateAdPageState extends State<CreateAdPage> {
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
   }) {
+    final loc = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -643,11 +682,13 @@ class _CreateAdPageState extends State<CreateAdPage> {
         ),
         validator: (value) {
           if (isRequired && (value == null || value.isEmpty)) {
-            return 'Bu alan zorunlu';
+            return loc.requiredField;
           }
-          if (keyboardType == TextInputType.phone && value != null && value.isNotEmpty) {
+          if (keyboardType == TextInputType.phone &&
+              value != null &&
+              value.isNotEmpty) {
             if (value.replaceAll(RegExp(r'[^0-9]'), '').length < 10) {
-              return 'Geçerli telefon girin';
+              return loc.invalidPhone;
             }
           }
           return null;
@@ -664,6 +705,7 @@ class _CreateAdPageState extends State<CreateAdPage> {
     required Function(String?) onChanged,
     bool isRequired = false,
   }) {
+    final loc = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
@@ -675,9 +717,13 @@ class _CreateAdPageState extends State<CreateAdPage> {
           filled: true,
           fillColor: Colors.grey[50],
         ),
-        items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+        items: items
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+            .toList(),
         onChanged: onChanged,
-        validator: isRequired ? (value) => value == null ? 'Bu alan zorunlu' : null : null,
+        validator: isRequired
+            ? (value) => value == null ? loc.requiredField : null
+            : null,
       ),
     );
   }

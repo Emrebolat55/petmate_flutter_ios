@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:petmate_flutter/l10n/generated/app_localizations.dart';
+import 'providers/locale_provider.dart';
 import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,10 +23,41 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _showRegister = false;
 
+  // Reklam Değişkenleri
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  final String _adUnitId = 'ca-app-pub-4939596189180370/8634856530';
+
   @override
   void initState() {
     super.initState();
     _silentFirebaseTest();
+    _loadBannerAd();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: _adUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          print('Login Page Banner reklam yüklenemedi: $err');
+          ad.dispose();
+        },
+      ),
+    )..load();
   }
 
   void _silentFirebaseTest() async {
@@ -72,6 +108,9 @@ class _LoginPageState extends State<LoginPage> {
             'lastLogin': DateTime.now().toIso8601String(),
             'adsCount': 0,
           });
+          
+          // RevenueCat kaydı
+          await Purchases.logIn(userCredential.user!.uid);
         }
 
         _showSuccess('Kayıt başarılı! Hoş geldin $fullName');
@@ -87,6 +126,9 @@ class _LoginPageState extends State<LoginPage> {
           await _database.child('users/${userCredential.user!.uid}/lastLogin').set(
             DateTime.now().toIso8601String(),
           );
+          
+          // RevenueCat kaydı
+          await Purchases.logIn(userCredential.user!.uid);
         }
       }
 
@@ -164,7 +206,45 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(height: 40),
+                // Dil Seçimi
+                Align(
+                  alignment: Alignment.topRight,
+                  child: PopupMenuButton<Locale>(
+                    onSelected: (Locale locale) {
+                      Provider.of<LocaleProvider>(context, listen: false).setLocale(locale);
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: Locale('tr'),
+                        child: Text('Türkçe'),
+                      ),
+                      const PopupMenuItem(
+                        value: Locale('en'),
+                        child: Text('English'),
+                      ),
+                      const PopupMenuItem(
+                        value: Locale('de'),
+                        child: Text('Deutsch'),
+                      ),
+                    ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.language, color: blue800, size: 20),
+                        const SizedBox(width: 4),
+                        Text(
+                          AppLocalizations.of(context)!.language,
+                          style: TextStyle(
+                            color: blue800,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 20),
 
                 // Logo ve Başlık
                 Column(
@@ -180,7 +260,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 20),
                     Text(
-                      'PetMate',
+                      AppLocalizations.of(context)!.appTitle,
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -190,7 +270,9 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      _showRegister ? 'Yeni Hesap Oluştur' : 'Hesabınıza Giriş Yapın',
+                      _showRegister 
+                        ? AppLocalizations.of(context)!.newAccount 
+                        : AppLocalizations.of(context)!.loginToAccount,
                       style: TextStyle(
                         fontSize: 16,
                         color: grey600,
@@ -209,7 +291,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: TextField(
                           controller: _firstNameController,
                           decoration: InputDecoration(
-                            labelText: 'Ad',
+                            labelText: AppLocalizations.of(context)!.firstName,
                             prefixIcon: Icon(Icons.person_outline, color: blue800),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -225,7 +307,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: TextField(
                           controller: _lastNameController,
                           decoration: InputDecoration(
-                            labelText: 'Soyad',
+                            labelText: AppLocalizations.of(context)!.lastName,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: grey300),
@@ -244,7 +326,7 @@ class _LoginPageState extends State<LoginPage> {
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(
-                    labelText: 'E-posta',
+                    labelText: AppLocalizations.of(context)!.email,
                     prefixIcon: Icon(Icons.email, color: blue800),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -262,7 +344,7 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
-                    labelText: 'Şifre',
+                    labelText: AppLocalizations.of(context)!.password,
                     prefixIcon: Icon(Icons.lock, color: blue800),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -283,7 +365,7 @@ class _LoginPageState extends State<LoginPage> {
                         _showError('Şifre sıfırlama özelliği yakında eklenecek');
                       },
                       child: Text(
-                        'Şifremi unuttum?',
+                        AppLocalizations.of(context)!.forgotPassword,
                         style: TextStyle(color: Color(0xFF1976D2)),
                       ),
                     ),
@@ -314,7 +396,9 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     )
                         : Text(
-                      _showRegister ? 'Hesap Oluştur' : 'Giriş Yap',
+                      _showRegister 
+                        ? AppLocalizations.of(context)!.registerButton 
+                        : AppLocalizations.of(context)!.loginButton,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -333,8 +417,8 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     Text(
                       _showRegister
-                          ? 'Zaten hesabınız var mı?'
-                          : 'Hesabınız yok mu?',
+                          ? AppLocalizations.of(context)!.alreadyHaveAccount
+                          : AppLocalizations.of(context)!.dontHaveAccount,
                       style: TextStyle(color: grey600),
                     ),
                     SizedBox(width: 8),
@@ -355,7 +439,9 @@ class _LoginPageState extends State<LoginPage> {
                         minimumSize: Size(0, 0),
                       ),
                       child: Text(
-                        _showRegister ? 'Giriş Yap' : 'Kayıt Ol',
+                        _showRegister 
+                          ? AppLocalizations.of(context)!.loginButton 
+                          : AppLocalizations.of(context)!.register,
                         style: TextStyle(
                           color: blue800,
                           fontWeight: FontWeight.w600,
@@ -370,6 +456,15 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+      bottomNavigationBar: _isBannerAdLoaded && _bannerAd != null
+          ? SafeArea(
+              child: SizedBox(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            )
+          : null,
     );
   }
 }

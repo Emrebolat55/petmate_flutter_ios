@@ -1,0 +1,59 @@
+﻿
+Running Gradle task 'assembleRelease'...                        
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 10040 bytes (99.4% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+flutter : e: file:///D:/petmate_flutter/build/webview_flutt
+er_android/.transforms/d3dc9f6ddc62665db73f7d49b033e3fb/tra
+nsformed/out/jars/classes.jar!/META-INF/webview_flutter_and
+roid_release.kotlin_moduleModule was compiled with an incom
+patible version of Kotlin. The binary version of its metada
+ta is 2.1.0, expected version is 1.8.0.
+At line:1 char:1
++ flutter build apk 2>&1 | Out-File -FilePath login_build_l
+og.txt -Enco ...
++ ~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file:///D: 
+   /p...rsion is 1.8.0.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///C:/Users/CASPER/.gradle/caches/transforms-3/fa77
+e2c00912849be730107ed94c1216/transformed/jetified-play-serv
+ices-ads-24.1.0/jars/classes.jar!/META-INF/third_party.kotl
+in.protobuf.src.commonMain.kotlin.com.google.protobuf.kotli
+n_shared_runtime.kotlin_moduleModule was compiled with an i
+ncompatible version of Kotlin. The binary version of its me
+tadata is 2.1.0, expected version is 1.8.0.
+e: file:///C:/Users/CASPER/.gradle/caches/transforms-3/fa77
+e2c00912849be730107ed94c1216/transformed/jetified-play-serv
+ices-ads-24.1.0/jars/classes.jar!/META-INF/java.com.google.
+android.gms.libs.filecompliance.proto_file_access_api_type_
+kt_proto_lite.kotlin_moduleModule was compiled with an inco
+mpatible version of Kotlin. The binary version of its metad
+ata is 2.1.0, expected version is 1.8.0.
+e: file:///C:/Users/CASPER/.gradle/caches/transforms-3/fa77
+e2c00912849be730107ed94c1216/transformed/jetified-play-serv
+ices-ads-24.1.0/jars/classes.jar!/META-INF/third_party.kotl
+in.protobuf.src.commonMain.kotlin.com.google.protobuf.kotli
+n_only_for_use_in_proto_generated_code_its_generator_and_te
+sts.kotlin_moduleModule was compiled with an incompatible v
+ersion of Kotlin. The binary version of its metadata is 2.1
+.0, expected version is 1.8.0.
+e: file:///C:/Users/CASPER/.gradle/caches/modules-2/files-2
+.1/org.jetbrains.kotlin/kotlin-stdlib/2.1.0/85f8b81009cda58
+90e54ba67d64b5e599c645020/kotlin-stdlib-2.1.0.jar!/META-INF
+/kotlin-stdlib-jdk7.kotlin_moduleModule was compiled with a
+n incompatible version of Kotlin. The binary version of its
+ metadata is 2.1.0, expected version is 1.8.0.
+e: file:///C:/Users/CASPER/.gradle/caches/modules-2/files-2
+.1/org.jetbrains.kotlin/kotlin-stdlib/2.1.0/85f8b81009cda58
+90e54ba67d64b5e599c645020/kotlin-stdlib-2.1.0.jar!/META-INF
+/kotlin-stdlib-jdk8.kotlin_moduleModule was compiled with a
+n incompatible version of Kotlin. The binary version of its
+ metadata is 2.1.0, expected version is 1.8.0.
+e: file:///C:/Users/CASPER/.gradle/caches/modules-2/files-2
+.1/org.jetbrains.kotlin/kotlin-stdlib/2.1.0/85f8b81009cda58
+90e54ba67d64b5e599c645020/kotlin-stdlib-2.1.0.jar!/META-INF
+/kotlin-stdlib.kotlin_moduleModule was compiled with an inc
+ompatible version of Kotlin. The binary version of its meta
+data is 2.1.0, expected version is 1.8.0.
+Running Gradle task 'assembleRelease'...                           39,1s
+ÔêÜ Built build\app\outputs\flutter-apk\app-release.apk (57.3MB)

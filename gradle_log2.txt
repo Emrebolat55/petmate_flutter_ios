@@ -1,0 +1,63 @@
+﻿
+Running Gradle task 'assembleRelease'...                        
+flutter : e: file:///C:/Users/CASPER/.gradle/caches/transfo
+rms-3/602ec48ad2180f0dd1d4c8a5bcf5d459/transformed/jetified
+-play-services-ads-24.1.0-api.jar!/META-INF/java.com.google
+.android.gms.libs.filecompliance.proto_file_access_api_type
+_kt_proto_lite.kotlin_moduleModule was compiled with an inc
+ompatible version of Kotlin. The binary version of its meta
+data is 2.1.0, expected version is 1.9.0.
+At line:1 char:1
++ flutter build apk 2>&1 | Out-File -FilePath gradle_log2.t
+xt -Encoding ...
++ ~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file:///C: 
+   /U...rsion is 1.9.0.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///C:/Users/CASPER/.gradle/caches/transforms-3/602e
+c48ad2180f0dd1d4c8a5bcf5d459/transformed/jetified-play-serv
+ices-ads-24.1.0-api.jar!/META-INF/third_party.kotlin.protob
+uf.src.commonMain.kotlin.com.google.protobuf.kotlin_only_fo
+r_use_in_proto_generated_code_its_generator_and_tests.kotli
+n_moduleModule was compiled with an incompatible version of
+ Kotlin. The binary version of its metadata is 2.1.0, expec
+ted version is 1.9.0.
+e: file:///C:/Users/CASPER/.gradle/caches/transforms-3/602e
+c48ad2180f0dd1d4c8a5bcf5d459/transformed/jetified-play-serv
+ices-ads-24.1.0-api.jar!/META-INF/third_party.kotlin.protob
+uf.src.commonMain.kotlin.com.google.protobuf.kotlin_shared_
+runtime.kotlin_moduleModule was compiled with an incompatib
+le version of Kotlin. The binary version of its metadata is
+ 2.1.0, expected version is 1.9.0.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.c
+ompilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinC
+ompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BU´┐¢LD FAILED in 44s
+Running Gradle task 'assembleRelease'...                           47,9s
+
+ÔöîÔöÇ Flutter Fix ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+Ôöé [!] Your project requires a newer version of the Kotlin Gradle plugin.                       Ôöé
+Ôöé Find the latest version on https://kotlinlang.org/docs/releases.html#release-details, then   Ôöé
+Ôöé update the                                                                                   Ôöé
+Ôöé version number of the plugin with id "org.jetbrains.kotlin.android" in the plugins block of  Ôöé
+Ôöé D:\petmate_flutter\android\settings.gradle.                                                  Ôöé
+Ôöé                                                                                              Ôöé
+Ôöé Alternatively (if your project was created before Flutter 3.19), update                      Ôöé
+Ôöé D:\petmate_flutter\android\build.gradle                                                      Ôöé
+Ôöé ext.kotlin_version = '<latest-version>'                                                      Ôöé
+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöİ
+Gradle task assembleRelease failed with exit code 1

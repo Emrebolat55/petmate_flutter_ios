@@ -6,6 +6,7 @@ import '../models/ad_model.dart';
 import 'edit_ad_page.dart';
 import 'create_ad_page.dart';
 import '../services/database_service.dart';
+import 'package:petmate_flutter/l10n/generated/app_localizations.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -120,7 +121,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             SizedBox(height: 8),
             Text(
-              'Resim Yok',
+              AppLocalizations.of(context)!.noImage,
               style: TextStyle(
                 color: Colors.grey[500],
                 fontSize: 12,
@@ -163,7 +164,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'SÜRESİ DOLMUŞ',
+                        AppLocalizations.of(context)!.expired.toUpperCase(),
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -194,7 +195,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        ad.adType,
+                        ad.adType == 'Sahiplendirme' ? AppLocalizations.of(context)!.adoption : AppLocalizations.of(context)!.mating,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -260,8 +261,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         SizedBox(width: 4),
                         Text(
                           isExpired
-                              ? 'Süresi doldu: ${ad.expiryDate!.day}.${ad.expiryDate!.month}.${ad.expiryDate!.year}'
-                              : 'Sona erme: ${ad.expiryDate!.day}.${ad.expiryDate!.month}.${ad.expiryDate!.year}',
+                              ? '${AppLocalizations.of(context)!.expired}: ${ad.expiryDate!.day}.${ad.expiryDate!.month}.${ad.expiryDate!.year}'
+                              : '${AppLocalizations.of(context)!.expiryDate}: ${ad.expiryDate!.day}.${ad.expiryDate!.month}.${ad.expiryDate!.year}',
                           style: TextStyle(
                             fontSize: 12,
                             color: isExpired ? Colors.red : Colors.grey[600],
@@ -290,7 +291,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Icon(Icons.remove_red_eye, size: 16, color: Colors.grey),
                         SizedBox(width: 4),
                         Text(
-                          '${ad.views} görüntülenme',
+                          '${ad.views} ${AppLocalizations.of(context)!.views}',
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
@@ -300,7 +301,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Icon(Icons.favorite_border, size: 16, color: Colors.grey),
                         SizedBox(width: 4),
                         Text(
-                          '${ad.likes} beğeni',
+                          '${ad.likes} ${AppLocalizations.of(context)!.likes}',
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
@@ -336,12 +337,12 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('İlanı Sil'),
-          content: Text('"${ad.title.isNotEmpty ? ad.title : ad.animalName}" ilanını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.'),
+          title: Text(AppLocalizations.of(context)!.deleteAd),
+          content: Text('"${ad.title.isNotEmpty ? ad.title : ad.animalName}" ${AppLocalizations.of(context)!.deleteConfirm}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('İptal'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -351,7 +352,7 @@ class _ProfilePageState extends State<ProfilePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
               ),
-              child: Text('Sil'),
+              child: Text(AppLocalizations.of(context)!.delete),
             ),
           ],
         );
@@ -366,14 +367,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('İlan başarıyla silindi'),
+          content: Text(AppLocalizations.of(context)!.deleteSuccess),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Silme işlemi sırasında hata oluştu: $e'),
+          content: Text('${AppLocalizations.of(context)!.deleteError}: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -397,7 +398,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profilim'),
+        title: Text(AppLocalizations.of(context)!.profile),
         backgroundColor: Colors.blue[800],
         elevation: 0,
         actions: [
@@ -451,7 +452,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hoş Geldiniz,',
+                              '${AppLocalizations.of(context)!.welcome},',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
@@ -459,7 +460,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             SizedBox(height: 4),
                             Text(
-                              _currentUser?.displayName ?? _currentUser?.email?.split('@').first ?? 'Misafir',
+                              _currentUser?.displayName ?? _currentUser?.email?.split('@').first ?? AppLocalizations.of(context)!.guest,
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -472,7 +473,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 Icon(Icons.email, size: 16, color: Colors.grey),
                                 SizedBox(width: 4),
                                 Text(
-                                  _currentUser?.email ?? 'E-posta yok',
+                                  _currentUser?.email ?? AppLocalizations.of(context)!.noEmail,
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey[600],
@@ -499,7 +500,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Column(
                     children: [
                       Text(
-                        'İstatistikler',
+                        AppLocalizations.of(context)!.stats,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -512,9 +513,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           _buildStatCard(
                             icon: Icons.list,
-                            title: 'Toplam İlan',
+                            title: AppLocalizations.of(context)!.totalAds,
                             value: stats['adsCount'].toString(),
-                            subtitle: _userAds.length.toString() + ' aktif',
+                            subtitle: _userAds.length.toString() + ' ${AppLocalizations.of(context)!.active}',
                             color: Colors.blue,
                           ),
                         ],
@@ -531,7 +532,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'İlanlarım',
+                        AppLocalizations.of(context)!.myAds,
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -546,18 +547,18 @@ class _ProfilePageState extends State<ProfilePage> {
                               await _loadUserAds();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('İlanlar yenilendi'),
+                                  content: Text(AppLocalizations.of(context)!.refreshAds),
                                   backgroundColor: Colors.blue,
                                 ),
                               );
                             },
-                            tooltip: 'Yenile',
+                            tooltip: AppLocalizations.of(context)!.refresh,
                           ),
                           SizedBox(width: 8),
                           ElevatedButton.icon(
                             onPressed: _handleNewAd,
                             icon: Icon(Icons.add),
-                            label: Text('Yeni İlan'),
+                            label: Text(AppLocalizations.of(context)!.newAd),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue[800],
                             ),
@@ -592,7 +593,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'Henüz ilanınız bulunmuyor',
+                        AppLocalizations.of(context)!.noAdsFound,
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[500],
@@ -601,7 +602,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'İlk ilanınızı vermek için "Yeni İlan" butonunu kullanın',
+                        AppLocalizations.of(context)!.noAdsHint,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
@@ -616,7 +617,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                         ),
                         child: Text(
-                          'İLAN VER',
+                          AppLocalizations.of(context)!.createAd.toUpperCase(),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.white,

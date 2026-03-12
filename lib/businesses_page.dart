@@ -94,7 +94,9 @@ class _BusinessesPageState extends State<BusinessesPage> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        throw Exception('Konum servisleri kapalı.');
+        // Otomatik olarak konum ayarlarını açmayı dene
+        await Geolocator.openLocationSettings();
+        throw Exception('Lütfen cihazınızın Konum(GPS) servisini açın.');
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
@@ -102,16 +104,20 @@ class _BusinessesPageState extends State<BusinessesPage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          throw Exception('Konum izni reddedildi.');
+          throw Exception('Konum izni reddedildi. Haritayı kullanabilmek için izin vermelisiniz.');
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Konum izni kalıcı olarak reddedildi.');
+        throw Exception('Konum izni kalıcı olarak reddedildi. Lütfen uygulama ayarlarından izin verin.');
       }
 
+      setState(() {
+        _errorMessage = 'Konumunuz bulunuyor...';
+      });
+
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
+        desiredAccuracy: LocationAccuracy.best,
       );
 
       setState(() {
@@ -121,12 +127,21 @@ class _BusinessesPageState extends State<BusinessesPage> {
       await _getAddressFromLatLng(position.latitude, position.longitude);
 
     } catch (e) {
+      print("Konum hatası: $e");
+      // Sadece hata fırlatıldığında Taksim gösterelim ama kullanıcıya gerçek bir hata mesajı verelim
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ));
+      }
       setState(() {
         _currentLatLng = LatLng(41.0351, 28.9833); // İstanbul Taksim
         _currentCity = 'İstanbul';
         _currentDistrict = 'Beyoğlu';
-        _currentAddress = 'Konum alınamadı';
-        _errorMessage = 'Konum alınamadı, İstanbul Taksim gösteriliyor';
+        _currentAddress = 'Konum tespit edilemedi';
+        _errorMessage = 'Gerçek konum alınamadı (Varsayılan konum gösteriliyor)';
       });
     }
   }
@@ -163,101 +178,112 @@ class _BusinessesPageState extends State<BusinessesPage> {
     });
 
     try {
-      List<Business> allBusinesses = [];
+      final lat = _currentLatLng!.latitude;
+      final lng = _currentLatLng!.longitude;
 
-      // Her işletme tipi için ayrı ayrı sorgu yap
+      // Tüm seçili kategoriler için OSM sorgusunu birleştirerek oluşturuyoruz.
+      // Bu sayede API "rate limit" (Too Many Requests) hatasından kurtuluruz.
+      String queryElements = '';
       for (String type in _selectedTypes) {
-        try {
-          List<Business> businesses = await _fetchBusinessesByType(type);
-          allBusinesses.addAll(businesses);
-        } catch (e) {
-          print('$type için sorgu hatası: $e');
+        if (_businessTypes.containsKey(type)) {
+          for (var tag in _businessTypes[type]!.osmTags) {
+            final key = tag.keys.first;
+            final value = tag.values.first;
+            queryElements += 'node["$key"="$value"](around:${_searchRadius.toInt()},$lat,$lng);\n';
+            queryElements += 'way["$key"="$value"](around:${_searchRadius.toInt()},$lat,$lng);\n';
+          }
         }
-
-        // API'yi yormamak için küçük bekleme
-        await Future.delayed(Duration(milliseconds: 300));
       }
 
-      if (allBusinesses.isNotEmpty) {
-        // Benzersiz işletmeler
-        final uniqueBusinesses = _removeDuplicateBusinesses(allBusinesses);
-
-        setState(() {
-          _allBusinesses = uniqueBusinesses;
-          _hasRealData = true;
-          _noBusinessesFound = false;
-          _errorMessage = '${uniqueBusinesses.length} işletme bulundu';
-          _createMarkers();
-        });
-      } else {
+      if (queryElements.isEmpty) {
         setState(() {
           _allBusinesses = [];
           _hasRealData = false;
           _noBusinessesFound = true;
-          _errorMessage = 'Yakınınızda hiç işletme bulunamadı';
+          _errorMessage = 'Lütfen en az bir işletme türü seçin';
           _createMarkers();
         });
+        return;
+      }
+
+      String query = '''
+        [out:json][timeout:25];
+        (
+$queryElements        );
+        out body;
+        >;
+        out skel qt;
+      ''';
+
+      final response = await http.post(
+        Uri.parse(_overpassUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'data': query},
+      ).timeout(Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        List<Business> allBusinesses = [];
+        
+        if (data['elements'] != null && data['elements'].isNotEmpty) {
+          for (var element in data['elements']) {
+            String foundType = _determineOsmElementType(element);
+            if (foundType.isNotEmpty) {
+              Business? business = _parseOSMElement(element, foundType);
+              if (business != null) {
+                allBusinesses.add(business);
+              }
+            }
+          }
+        }
+
+        if (allBusinesses.isNotEmpty) {
+          final uniqueBusinesses = _removeDuplicateBusinesses(allBusinesses);
+          setState(() {
+            _allBusinesses = uniqueBusinesses;
+            _hasRealData = true;
+            _noBusinessesFound = false;
+            _errorMessage = '${uniqueBusinesses.length} işletme bulundu';
+            _createMarkers();
+          });
+        } else {
+          setState(() {
+            _allBusinesses = [];
+            _hasRealData = false;
+            _noBusinessesFound = true;
+            _errorMessage = 'Yakınınızda hiç işletme bulunamadı';
+            _createMarkers();
+          });
+        }
+      } else {
+        throw Exception('Mevcut sunucu yoğun, lütfen bir dakika sonra tekrar deneyin.');
       }
     } catch (e) {
       print('OpenStreetMap hatası: $e');
       setState(() {
-        _errorMessage = 'İşletmeler yüklenirken hata oluştu';
+        _errorMessage = 'İşletmeler çekilirken sunucu hatası oluştu';
         _hasRealData = false;
         _noBusinessesFound = true;
       });
     }
   }
 
-  Future<List<Business>> _fetchBusinessesByType(String type) async {
-    if (!_businessTypes.containsKey(type)) return [];
-
-    final businessType = _businessTypes[type]!;
-    final lat = _currentLatLng!.latitude;
-    final lng = _currentLatLng!.longitude;
-
-    List<Business> businesses = [];
-
-    // Her tag için ayrı ayrı sorgu yap
-    for (var tag in businessType.osmTags) {
-      try {
-        final key = tag.keys.first;
-        final value = tag.values.first;
-
-        String query = '''
-          [out:json][timeout:25];
-          (
-            node["$key"="$value"](around:${_searchRadius.toInt()},$lat,$lng);
-            way["$key"="$value"](around:${_searchRadius.toInt()},$lat,$lng);
-          );
-          out body;
-          >;
-          out skel qt;
-        ''';
-
-        final response = await http.post(
-          Uri.parse(_overpassUrl),
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: {'data': query},
-        ).timeout(Duration(seconds: 30));
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['elements'] != null && data['elements'].isNotEmpty) {
-            for (var element in data['elements']) {
-              Business? business = _parseOSMElement(element, type);
-              if (business != null) {
-                businesses.add(business);
-              }
-            }
+  String _determineOsmElementType(Map<String, dynamic> element) {
+    if (element['tags'] == null) return '';
+    Map<String, dynamic> tags = Map<String, dynamic>.from(element['tags']);
+    
+    for (String type in _selectedTypes) {
+      if (_businessTypes.containsKey(type)) {
+        for (var tag in _businessTypes[type]!.osmTags) {
+          final key = tag.keys.first;
+          final value = tag.values.first;
+          if (tags[key] == value) {
+            return type;
           }
         }
-      } catch (e) {
-        print('$type - $tag sorgu hatası: $e');
-        continue;
       }
     }
-
-    return businesses;
+    return '';
   }
 
   Business? _parseOSMElement(Map<String, dynamic> element, String type) {
