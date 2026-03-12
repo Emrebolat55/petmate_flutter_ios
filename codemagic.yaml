@@ -27,9 +27,11 @@ workflows:
         script: |
           flutter clean
           rm -rf ios/Flutter
+          rm -f ios/Podfile.lock
           flutter create .
           flutter packages pub get
           flutter precache --ios
+          pod cache clean --all
           cd ios && pod repo update --verbose
       - name: Build Flutter iOS (no codesign)
         script: |

@@ -1,11 +1,12 @@
-# Professional CI/CD Podfile for Flutter
+# Robust CI/CD Podfile for Flutter with Dependency Conflict Fixes
+source 'https://github.com/CocoaPods/Specs.git'
+source 'https://cdn.cocoapods.org/'
+
 platform :ios, '14.0'
 
 # Load podhelper directly from Flutter SDK (Robust for CI)
 flutter_sdk_path = ENV['FLUTTER_ROOT']
 if flutter_sdk_path.nil?
-  # Fallback for local development if FLUTTER_ROOT is not set
-  # This assumes a standard relative path if running on a Mac locally
   podhelper_path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 else
   podhelper_path = File.join(flutter_sdk_path, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
@@ -34,9 +35,14 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
+      # Force 14.0 for all dependencies to avoid google_maps conflicts
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      
       # Fix for Firebase and other non-modular headers
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      
+      # Ensure arm64 architecture support
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
     end
   end
 end
