@@ -28,15 +28,15 @@ workflows:
           flutter packages pub get
       - name: Install Pods
         script: |
-          find . -name "Podfile" -execdir pod install \;
+          cd ios && pod repo update && pod install
       - name: Build Flutter iOS (no codesign)
         script: |
           flutter build ios --release --no-codesign
       - name: Build IPA and Sign
         script: |
           xcode-project build-ipa \
-            --workspace "ios/Runner.xcworkspace" \
-            --scheme "Runner" \
+            --workspace ios/Runner.xcworkspace \
+            --scheme Runner \
             --export-options-plist /Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
