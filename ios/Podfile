@@ -1,22 +1,40 @@
-# Robust CI/CD Podfile for Flutter
+# Ultra-Robust CI/CD Podfile for Flutter
 platform :ios, '14.0'
 
-# Use default CocoaPods trunk (Removes "multiple specifications" conflict)
-# No explicit sources needed unless using private repos
+# Force CocoaPods to use the CDN source ONLY (Fixes "not a commit" git errors)
+source 'https://cdn.cocoapods.org/'
 
-# Load podhelper directly from Flutter SDK (Robust for CI)
-flutter_sdk_path = ENV['FLUTTER_ROOT']
-if flutter_sdk_path.nil?
-  podhelper_path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
-else
-  podhelper_path = File.join(flutter_sdk_path, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+# Aggressive helper to find podhelper.rb in any environment
+def find_podhelper
+  # 1. Check CI Environment Variable (Codemagic)
+  if ENV['FLUTTER_ROOT']
+    path = File.join(ENV['FLUTTER_ROOT'], 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+    return path if File.exist?(path)
+  end
+  
+  # 2. Check standard relative path (Local Mac)
+  path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
+  return path if File.exist?(path)
+  
+  # 3. Last resort - locate via system which
+  begin
+    flutter_bin = `which flutter`.strip
+    unless flutter_bin.empty?
+      sdk_root = File.dirname(File.dirname(flutter_bin))
+      path = File.join(sdk_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+      return path if File.exist?(path)
+    end
+  rescue
+  end
+  
+  # Fallback for some CI environments where FLUTTER_ROOT might be slightly different
+  path = "/Users/builder/programs/flutter/packages/flutter_tools/bin/podhelper.rb"
+  return path if File.exist?(path)
+
+  raise "CRITICAL: podhelper.rb not found. Ensure Flutter SDK is installed and accessible."
 end
 
-if File.exist?(podhelper_path)
-  require podhelper_path
-else
-  raise "podhelper.rb not found at #{podhelper_path}. Ensure Flutter SDK is installed and FLUTTER_ROOT is set."
-end
+require find_podhelper
 
 project 'Runner', {
   'Debug' => :debug,
@@ -29,20 +47,20 @@ target 'Runner' do
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  
+  # Explicitly force GoogleMaps version to match known stable
+  # This helps if podhelper resolution gets confused
+  pod 'GoogleMaps', '9.2.0'
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Force 14.0 for all dependencies to avoid google_maps conflicts
+      # Force deployment target consistency
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
-      
       # Fix for Firebase and other non-modular headers
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      
-      # Ensure arm64 architecture support
-      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
     end
   end
 end
