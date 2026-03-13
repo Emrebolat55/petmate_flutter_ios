@@ -1,8 +1,41 @@
-# Official & Robust Podfile for Flutter
+# Bulletproof Podfile for Flutter CI/CD
 platform :ios, '15.0'
 
-# Standard Flutter podhelper
-require_relative '../Flutter/podhelper'
+# --- PODHELPER LOCATOR ---
+def find_podhelper
+  # 1. Standard relative path from Podfile to ios/Flutter/podhelper.rb
+  path = File.expand_path(File.join('Flutter', 'podhelper.rb'), __dir__)
+  return path if File.exist?(path)
+
+  # 2. Check if it's in the project root's Flutter folder (unusual but possible)
+  path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __dir__)
+  return path if File.exist?(path)
+
+  # 3. Fallback: Lookup via Generated.xcconfig (Most reliable in CI)
+  generated_xc_path = File.expand_path(File.join('Flutter', 'Generated.xcconfig'), __dir__)
+  if File.exist?(generated_xc_path)
+    File.foreach(generated_xc_path) do |line|
+      matches = line.match(/\s*FLUTTER_ROOT\s*=\s*(.*)/)
+      if matches
+        root = matches[1].strip
+        path = File.join(root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+        return path if File.exist?(path)
+      end
+    end
+  end
+
+  # 4. Final attempt: Check common CI environment variable
+  flutter_root = ENV['FLUTTER_ROOT']
+  if flutter_root && !flutter_root.empty?
+    path = File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+    return path if File.exist?(path)
+  end
+
+  raise "CRITICAL: podhelper.rb not found. Ensure flutter pub get is run."
+end
+
+require find_podhelper
+# -------------------------
 
 target 'Runner' do
   # linkage => :static is the most stable for Firebase/Google Maps
@@ -16,7 +49,7 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Force iOS 15.0 target
+      # Force iOS 15.0 target environment
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       # Resolve modular header conflicts
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
