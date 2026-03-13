@@ -51,7 +51,6 @@
     <string>Bu uygulama fotoğraf seçmek için galeriye erişmek istiyor</string>
     <key>NSCameraUsageDescription</key>
     <string>Bu uygulama fotoğraf çekmek için kameraya erişmek istiyor</string>
-
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Yakındaki pet işletmelerini görmek için konumunuza ihtiyacımız var</string>
     <key>NSLocationAlwaysUsageDescription</key>
@@ -62,9 +61,5 @@
     <array>
         <string>tel</string>
     </array>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>İşletmeleri bulmak için konumunuza ihtiyacımız var</string>
-    <key>NSLocationAlwaysUsageDescription</key>
-    <string>İşletmeleri bulmak için konumunuza ihtiyacımız var</string>
 </dict>
 </plist>
