@@ -1,46 +1,11 @@
-# Resilient & Final Podfile for Petmate
+# Final & Stable Podfile for Petmate
 platform :ios, '15.0'
 
-# --- THE ABSOLUTE SDK LOCATOR ---
-# This function finds podhelper.rb by looking at the FLUTTER_ROOT
-# which is always set in GitHub Actions.
-def find_podhelper
-  flutter_root = ENV['FLUTTER_ROOT']
-  if flutter_root && !flutter_root.empty?
-    path = File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
-    return path if File.exist?(path)
-  end
-
-  # Fallback: Read from the local Generated.xcconfig
-  xc_path = File.expand_path(File.join('Flutter', 'Generated.xcconfig'), __dir__)
-  if File.exist?(xc_path)
-    File.foreach(xc_path) do |line|
-      matches = line.match(/\s*FLUTTER_ROOT\s*=\s*(.*)/)
-      if matches
-        root = matches[1].strip
-        path = File.join(root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
-        return path if File.exist?(path)
-      end
-    end
-  end
-
-  # Ultimate fallback: Normal relative path
-  File.expand_path(File.join('Flutter', 'podhelper.rb'), __dir__)
-end
-
-required_file = find_podhelper
-puts "DEBUG: Loading podhelper from #{required_file}"
-begin
-  require required_file
-rescue LoadError => e
-  # If it still fails, we create a dummy podhelper to avoid crash
-  # but this shouldn't happen with the SDK locator.
-  puts "ERROR: Could not load podhelper.rb. Is Flutter SDK installed?"
-  raise e
-end
-# -------------------------------
+# Standard Flutter path relative to ios/Podfile
+require_relative 'Flutter/podhelper'
 
 target 'Runner' do
+  # static linkage is critical for Firebase/Google Maps compatibility
   use_frameworks! :linkage => :static
   use_modular_headers!
 
@@ -51,7 +16,9 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
+      # Force iOS 15.0 across all dependencies
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      # Resolve modular header conflicts
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
