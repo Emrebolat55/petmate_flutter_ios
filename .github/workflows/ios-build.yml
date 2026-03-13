@@ -27,7 +27,9 @@ jobs:
 
       - name: Build iOS No Codesign
         run: |
-          # Use standard flutter build, it handles pod install correctly
+          # The FLUTTER_ROOT is set by the action. 
+          # We use it in our Podfile to find podhelper.rb
+          echo "FLUTTER_ROOT is $FLUTTER_ROOT"
           flutter build ios --release --no-codesign --verbose
           
       - name: Upload Build Artifacts
