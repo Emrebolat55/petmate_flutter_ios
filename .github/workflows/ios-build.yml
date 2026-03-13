@@ -1,0 +1,58 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build IPA
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full clone to avoid "not a commit" errors
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          channel: 'stable'
+
+      - name: Set up CocoaPods
+        run: |
+          sudo gem install cocoapods
+          pod --version
+
+      - name: Install dependencies
+        run: |
+          flutter clean
+          flutter pub get
+          flutter precache --ios
+
+      - name: Build iOS No Codesign
+        run: |
+          # Git fixes for Mac Runner
+          git config --global advice.detachedHead false
+          
+          # Clean and Build
+          cd ios
+          rm -rf Pods
+          rm -f Podfile.lock
+          pod cache clean --all
+          pod install --repo-update
+          cd ..
+          flutter build ios --release --no-codesign
+
+      # NOTE: For a production IPA with signing, we would add steps here
+      # to install the Apple Certificate and Provisioning Profile.
+      # For now, we are focusing on getting the build to PASS.
+
+      - name: Upload Artifacts
+        uses: actions/util/upload-artifact-link@v4 # This is handled by GitHub's UI normally
+        with:
+          name: ios-build
+          path: build/ios/iphoneos/*.app
