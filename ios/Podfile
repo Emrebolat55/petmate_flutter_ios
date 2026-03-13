@@ -1,24 +1,11 @@
 # Official & Robust Podfile for Flutter
 platform :ios, '15.0'
 
-# Standard Flutter podhelper loading logic
-def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. In CI, ensure flutter pub get is run before pod install."
-  end
-
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/\s*FLUTTER_ROOT\s*=\s*(.*)/)
-    return matches[1].strip if matches
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get."
-end
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper.rb'), flutter_root)
+# Standard Flutter podhelper
+require_relative '../Flutter/podhelper'
 
 target 'Runner' do
-  # static linkage is required for robust Firebase/Google Maps builds
+  # linkage => :static is the most stable for Firebase/Google Maps
   use_frameworks! :linkage => :static
   use_modular_headers!
 
@@ -29,7 +16,7 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Force iOS 15.0 across all dependencies
+      # Force iOS 15.0 target
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       # Resolve modular header conflicts
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'

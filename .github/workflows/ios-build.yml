@@ -19,31 +19,21 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Set up CocoaPods
-        run: |
-          sudo gem install cocoapods -n /usr/local/bin
-          pod --version
+      - name: Flutter Diagnostics
+        run: flutter doctor -v
 
-      - name: Build Preparation
+      - name: Get Dependencies
         run: |
           flutter clean
-          # Force regeneration of iOS infrastructure
-          flutter create .
           flutter pub get
           flutter precache --ios
 
       - name: Build iOS No Codesign
         run: |
-          git config --global advice.detachedHead false
-          # Ensure Cocoapods is clean but healthy
-          cd ios
-          rm -rf Pods
-          rm -f Podfile.lock
-          # Note: flutter build ios will call pod install automatically
-          cd ..
-          flutter build ios --release --no-codesign --verbose
-
-      - name: Upload Build
+          # Use standard flutter build, it handles pod install correctly
+          flutter build ios --release --no-codesign
+          
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ios-build-app
