@@ -8,26 +8,23 @@ on:
 jobs:
   build:
     name: Build IPA
-    runs-on: macos-latest
+    runs-on: macos-14
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Full clone to avoid "not a commit" errors
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'
           channel: 'stable'
 
       - name: Set up CocoaPods
         run: |
-          sudo gem install cocoapods
+          sudo gem install cocoapods -n /usr/local/bin
           pod --version
 
-      - name: Install dependencies
+      - name: Get Dependencies
         run: |
           flutter clean
           flutter pub get
@@ -35,10 +32,7 @@ jobs:
 
       - name: Build iOS No Codesign
         run: |
-          # Git fixes for Mac Runner
           git config --global advice.detachedHead false
-          
-          # Clean and Build
           cd ios
           rm -rf Pods
           rm -f Podfile.lock
@@ -47,12 +41,8 @@ jobs:
           cd ..
           flutter build ios --release --no-codesign
 
-      # NOTE: For a production IPA with signing, we would add steps here
-      # to install the Apple Certificate and Provisioning Profile.
-      # For now, we are focusing on getting the build to PASS.
-
-      - name: Upload Artifacts
+      - name: Upload Build
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build
+          name: ios-build-app
           path: build/ios/iphoneos/*.app
