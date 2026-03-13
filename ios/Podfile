@@ -4,18 +4,14 @@ platform :ios, '15.0'
 # Use CocoaPods CDN exclusively
 source 'https://cdn.cocoapods.org/'
 
-# Aggressive helper to find podhelper.rb in any environment
-def find_podhelper
-  if ENV['FLUTTER_ROOT']
-    path = File.join(ENV['FLUTTER_ROOT'], 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
-    return path if File.exist?(path)
-  end
-  path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
-  return path if File.exist?(path)
-  "/Users/builder/programs/flutter/packages/flutter_tools/bin/podhelper.rb"
+# Standard Flutter path for local, environment for CI
+if ENV['FLUTTER_ROOT']
+  podhelper_path = File.join(ENV['FLUTTER_ROOT'], 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+else
+  podhelper_path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
 end
 
-require find_podhelper
+require podhelper_path
 
 project 'Runner', {
   'Debug' => :debug,
@@ -34,9 +30,8 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Maintain 15.0 consistency for all libraries
+      # Force consistency across all pods
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      # Keep Firebase and GoogleMaps non-modular support
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
