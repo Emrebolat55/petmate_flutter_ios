@@ -1,38 +1,11 @@
-# Definitive CI/CD Podfile for Flutter
+# Official & Robust Podfile for Flutter
+source 'https://cdn.cocoapods.org/'
 platform :ios, '15.0'
 
-# Ensure we use the official CDN
-source 'https://cdn.cocoapods.org/'
-
-# Robustly find podhelper.rb using FLUTTER_ROOT (standard on Codemagic)
-flutter_root = ENV['FLUTTER_ROOT']
-if flutter_root.nil? || flutter_root.empty?
-  # Fallback for local development
-  podhelper_path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
-else
-  podhelper_path = File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
-end
-
-if File.exist?(podhelper_path)
-  require podhelper_path
-else
-  # Hardcoded fallback for Codemagic's typical path if all else fails
-  hardcoded_path = "/Users/builder/programs/flutter/packages/flutter_tools/bin/podhelper.rb"
-  if File.exist?(hardcoded_path)
-    require hardcoded_path
-  else
-    raise "CRITICAL: podhelper.rb not found at #{podhelper_path}. Ensure FLUTTER_ROOT is set correctly."
-  end
-end
-
-project 'Runner', {
-  'Debug' => :debug,
-  'Release' => :release,
-  'Profile' => :profile,
-}
+require_relative '../Flutter/podhelper'
 
 target 'Runner' do
-  # linkage => :static resolves Ruby 3.4 / CocoaPods validation bugs
+  # linkage => :static resolves Ruby/CocoaPods internal validation bugs
   use_frameworks! :linkage => :static
   use_modular_headers!
 
@@ -43,9 +16,9 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Force consistency across all targets
+      # Force iOS 15.0 consistency
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      # Resolve "non-modular header" errors for Firebase/GoogleMaps
+      # Resolve Firebase/GoogleMaps non-modular head errors
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end

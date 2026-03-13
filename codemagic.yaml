@@ -5,7 +5,7 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
-      xcode: latest
+      xcode: 15.3 # Pinning for stability
       cocoapods: default
       groups:
         - apple_auth # App Store Connect API Key group
@@ -13,7 +13,7 @@ workflows:
         XCODE_SCHEME: "Runner"
         XCODE_PROJECT: "ios/Runner.xcodeproj"
         BUNDLE_ID: "com.bolatsoft.petmate"
-        APP_STORE_APPLE_ID: 6742548485 # Replace with your Apple ID after creating the app
+        APP_STORE_APPLE_ID: 6742548485
         COCOAPODS_SKIP_SHALLOW_FETCH: "true"
     integrations:
       app_store_connect: Codemagic
@@ -27,19 +27,21 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter clean
-          # Clean problematic directories
+          # NUCLEAR WIPE: Clear all problematic local caches/repos
           rm -rf ios/Flutter
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
-          # Force regenerate the iOS build infrastructure
+          rm -rf ~/.cocoapods
+          rm -rf ~/Library/Caches/CocoaPods
+          # Remove legacy master spec repo to force CDN usage
+          pod repo remove master || true
+          # Rebuild project structure
           flutter create .
           flutter packages pub get
           flutter precache --ios
-          # Final weapon against CocoaPods git issues:
-          pod cache clean --all
       - name: Build Flutter iOS (no codesign)
         script: |
-          # Flutter build command handles its own pod install using the environment variables
+          # Flutter build command handles pod install internally using our CDN-aware Podfile
           flutter build ios --release --no-codesign
       - name: Build IPA and Sign
         script: |
