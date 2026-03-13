@@ -2,7 +2,7 @@
 platform :ios, '15.0'
 
 # Pointer to Flutter's native podhelper
-require_relative '../Flutter/podhelper'
+require_relative 'Flutter/podhelper'
 
 target 'Runner' do
   # linkage => :static is the only way to avoid Firebase Duplicate Symbol errors
