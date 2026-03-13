@@ -52,7 +52,7 @@ jobs:
       # For now, we are focusing on getting the build to PASS.
 
       - name: Upload Artifacts
-        uses: actions/util/upload-artifact-link@v4 # This is handled by GitHub's UI normally
+        uses: actions/upload-artifact@v4
         with:
           name: ios-build
           path: build/ios/iphoneos/*.app
