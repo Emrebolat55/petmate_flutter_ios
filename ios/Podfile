@@ -1,37 +1,18 @@
-# Ultra-Robust CI/CD Podfile for Flutter
+# Professional CI/CD Podfile for Flutter
 platform :ios, '15.0'
 
-# Force CocoaPods to use the CDN source ONLY (Fixes "not a commit" git errors)
+# Use CocoaPods CDN exclusively
 source 'https://cdn.cocoapods.org/'
 
 # Aggressive helper to find podhelper.rb in any environment
 def find_podhelper
-  # 1. Check CI Environment Variable (Codemagic)
   if ENV['FLUTTER_ROOT']
     path = File.join(ENV['FLUTTER_ROOT'], 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
     return path if File.exist?(path)
   end
-  
-  # 2. Check standard relative path (Local Mac)
   path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
   return path if File.exist?(path)
-  
-  # 3. Last resort - locate via system which
-  begin
-    flutter_bin = `which flutter`.strip
-    unless flutter_bin.empty?
-      sdk_root = File.dirname(File.dirname(flutter_bin))
-      path = File.join(sdk_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
-      return path if File.exist?(path)
-    end
-  rescue
-  end
-  
-  # Fallback for some CI environments where FLUTTER_ROOT might be slightly different
-  path = "/Users/builder/programs/flutter/packages/flutter_tools/bin/podhelper.rb"
-  return path if File.exist?(path)
-
-  raise "CRITICAL: podhelper.rb not found. Ensure Flutter SDK is installed and accessible."
+  "/Users/builder/programs/flutter/packages/flutter_tools/bin/podhelper.rb"
 end
 
 require find_podhelper
@@ -53,9 +34,9 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Force 15.0 for all dependencies to resolve library conflicts
+      # Maintain 15.0 consistency for all libraries
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      # Fix for Firebase and other non-modular headers
+      # Keep Firebase and GoogleMaps non-modular support
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end

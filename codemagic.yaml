@@ -29,13 +29,13 @@ workflows:
           rm -rf ios/Flutter
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
-          # Force remove the problematic master repo and all pod caches
-          rm -rf ~/.cocoapods/repos/master
-          pod repo remove master || true
-          flutter create .
+          # Total wipe of ANY CocoaPods state to fix git corruption
+          rm -rf ~/.cocoapods
+          rm -rf ~/Library/Caches/CocoaPods
+          rm -rf ~/Library/Developer/Xcode/DerivedData
           flutter packages pub get
           flutter precache --ios
-          pod cache clean --all --verbose
+          # No manual repo update - let pod install use the CDN directly from the Podfile source
       - name: Build Flutter iOS (no codesign)
         script: |
           flutter build ios --release --no-codesign
