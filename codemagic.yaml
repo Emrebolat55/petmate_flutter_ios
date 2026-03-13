@@ -5,7 +5,7 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
-      xcode: 15.3 # Pinning for stability
+      xcode: latest # Reverting to latest as 15.3 is unsupported
       cocoapods: default
       groups:
         - apple_auth # App Store Connect API Key group
