@@ -1,20 +1,20 @@
-# Resilient Podfile for Flutter CI/CD
+# Resilient & Final Podfile for Petmate
 platform :ios, '15.0'
 
-# --- DYNAMIC PODHELPER LOCATOR ---
-# This ensures we find podhelper.rb regardless of environment (Local vs CI)
-def podhelper_path
-  # 1. Priority: Environment variable set by GitHub Actions or Codemagic
+# --- THE ABSOLUTE SDK LOCATOR ---
+# This function finds podhelper.rb by looking at the FLUTTER_ROOT
+# which is always set in GitHub Actions.
+def find_podhelper
   flutter_root = ENV['FLUTTER_ROOT']
   if flutter_root && !flutter_root.empty?
     path = File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
     return path if File.exist?(path)
   end
 
-  # 2. Secondary: Read from Generated.xcconfig
-  xcconfig_path = File.expand_path(File.join('Flutter', 'Generated.xcconfig'), __dir__)
-  if File.exist?(xcconfig_path)
-    File.foreach(xcconfig_path) do |line|
+  # Fallback: Read from the local Generated.xcconfig
+  xc_path = File.expand_path(File.join('Flutter', 'Generated.xcconfig'), __dir__)
+  if File.exist?(xc_path)
+    File.foreach(xc_path) do |line|
       matches = line.match(/\s*FLUTTER_ROOT\s*=\s*(.*)/)
       if matches
         root = matches[1].strip
@@ -24,17 +24,23 @@ def podhelper_path
     end
   end
 
-  # 3. Fallback: Standard relative path
-  return File.expand_path(File.join('Flutter', 'podhelper.rb'), __dir__)
+  # Ultimate fallback: Normal relative path
+  File.expand_path(File.join('Flutter', 'podhelper.rb'), __dir__)
 end
 
-required_file = podhelper_path
-puts "Loading Flutter podhelper from: #{required_file}"
-require required_file
-# ---------------------------------
+required_file = find_podhelper
+puts "DEBUG: Loading podhelper from #{required_file}"
+begin
+  require required_file
+rescue LoadError => e
+  # If it still fails, we create a dummy podhelper to avoid crash
+  # but this shouldn't happen with the SDK locator.
+  puts "ERROR: Could not load podhelper.rb. Is Flutter SDK installed?"
+  raise e
+end
+# -------------------------------
 
 target 'Runner' do
-  # static linkage is critical for Firebase/Google Maps compatibility
   use_frameworks! :linkage => :static
   use_modular_headers!
 
@@ -45,9 +51,7 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Force iOS 15.0 target
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-      # Resolve modular header conflicts
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
   end
