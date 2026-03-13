@@ -30,14 +30,16 @@ workflows:
           rm -rf ios/Flutter
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
+          # Force regenerate the iOS infrastructure
+          flutter create .
+          flutter packages pub get
+          flutter precache --ios
           # Total wipe of ANY CocoaPods state to fix git corruption
           rm -rf ~/.cocoapods
           rm -rf ~/Library/Caches/CocoaPods
           # Force use of CDN and remove master repo definitively
           pod repo remove master || true
           pod repo add-cdn trunk https://cdn.cocoapods.org/ || true
-          flutter packages pub get
-          flutter precache --ios
           # Run pod install manually once inside ios to ensure CDN is used
           cd ios && pod install --repo-update --verbose
       - name: Build Flutter iOS (no codesign)
