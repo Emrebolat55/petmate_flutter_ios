@@ -19,21 +19,26 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Get Dependencies
+      - name: Flutter System Check
         run: |
+          flutter doctor -v
+          flutter --version
+
+      - name: Get Dependencies (Nuclear Mode)
+        run: |
+          rm -f pubspec.lock
           flutter clean
           flutter pub get
           flutter precache --ios
 
-      - name: Build iOS No Codesign
+      - name: Build iOS (Ultra Verbose)
         run: |
-          # The FLUTTER_ROOT is set by the action. 
-          # We use it in our Podfile to find podhelper.rb
-          echo "FLUTTER_ROOT is $FLUTTER_ROOT"
-          flutter build ios --release --no-codesign --verbose
+          # Use --verbose AND --trace-warnings to find the crash root
+          flutter build ios --release --no-codesign --verbose --trace-warnings
           
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ios-build-app
           path: build/ios/iphoneos/*.app
