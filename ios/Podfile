@@ -1,67 +1,24 @@
-# Official & Robust Podfile for Flutter CI/CD
+# Official & Robust Podfile for Flutter
 platform :ios, '15.0'
 
-# Use the official CDN for performance and reliability
-source 'https://cdn.cocoapods.org/'
-
-# Performance and Stability Flags
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-ENV['COCOAPODS_SKIP_SHALLOW_FETCH'] = 'true'
-
-# --- THE ABSOLUTE PODHELPER FINDER ---
-def find_podhelper
-    # 1. Check CI environment variable (Recommended for Codemagic)
-    flutter_root = ENV['FLUTTER_ROOT']
-    if flutter_root && !flutter_root.empty?
-        path = File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
-        return path if File.exist?(path)
-    end
-
-    # 2. Check traditional project-relative path
-    path = File.expand_path(File.join('..', 'Flutter', 'podhelper.rb'), __FILE__)
-    return path if File.exist?(path)
-
-    # 3. Check for the case where Podfile is incorrectly parented
-    path = File.expand_path(File.join('Flutter', 'podhelper.rb'), __FILE__)
-    return path if File.exist?(path)
-
-    # 4. Hardcoded fallback for Codemagic standard paths
-    %w[
-        /Users/builder/programs/flutter/packages/flutter_tools/bin/podhelper.rb
-        /opt/flutter/packages/flutter_tools/bin/podhelper.rb
-    ].each do |p|
-        return p if File.exist?(p)
-    end
-
-    # 5. Last resort: locate via system
-    begin
-        flutter_bin = `which flutter`.strip
-        unless flutter_bin.empty?
-            sdk_root = File.dirname(File.dirname(flutter_bin))
-            path = File.join(sdk_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
-            return path if File.exist?(path)
-        end
-    rescue
-    end
-
-    raise "CRITICAL: podhelper.rb not found. Ensure FLUTTER_ROOT is set correctly."
-end
-
-require find_podhelper
-# -------------------------------------
-
-project 'Runner', {
-  'Debug' => :debug,
-  'Release' => :release,
-  'Profile' => :profile,
-}
+# Standard Flutter podhelper loading
+require_relative '../Flutter/podhelper'
 
 target 'Runner' do
-  # static linkage is the only stable way for Firebase/Maps in some Ruby environments
   use_frameworks! :linkage => :static
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    end
+  end
 end
 
 post_install do |installer|
