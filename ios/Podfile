@@ -4,6 +4,10 @@ platform :ios, '15.0'
 # Use the official CDN for performance and reliability
 source 'https://cdn.cocoapods.org/'
 
+# Performance and Stability Flags
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+ENV['COCOAPODS_SKIP_SHALLOW_FETCH'] = 'true'
+
 # --- THE ABSOLUTE PODHELPER FINDER ---
 def find_podhelper
     # 1. Check CI environment variable (Recommended for Codemagic)

@@ -26,19 +26,22 @@ workflows:
           xcode-project use-profiles
       - name: Get Flutter packages
         script: |
+          # Git fixes for detached HEAD and large clones
+          git config --global advice.detachedHead false
+          git config --global core.compression 0
+          git config --global http.postBuffer 524288000
+          
           flutter clean
-          # Clean only caches, let flutter recreate what's needed
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
           flutter packages pub get
           flutter precache --ios
-          # Aggressive internal CocoaPods cleanup
+          # Clear cache before build to ensure fresh specs
           pod cache clean --all
-          pod repo remove master || true
       - name: Build Flutter iOS (no codesign)
         script: |
-          # The robust Podfile will handle finding the Flutter SDK correctly
-          flutter build ios --release --no-codesign
+          # Use a higher timeout for pod install during build
+          flutter build ios --release --no-codesign --verbose
       - name: Build IPA and Sign
         script: |
           xcode-project build-ipa \
