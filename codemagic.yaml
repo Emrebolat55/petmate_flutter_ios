@@ -6,7 +6,7 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
-      cocoapods: default
+      cocoapods: 1.15.2
       groups:
         - apple_auth # App Store Connect API Key group
       vars:
@@ -14,6 +14,7 @@ workflows:
         XCODE_PROJECT: "ios/Runner.xcodeproj"
         BUNDLE_ID: "com.bolatsoft.petmate"
         APP_STORE_APPLE_ID: 6742548485 # Replace with your Apple ID after creating the app
+        COCOAPODS_SKIP_SHALLOW_FETCH: "true"
     integrations:
       app_store_connect: Codemagic
     scripts:
