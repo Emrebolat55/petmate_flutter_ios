@@ -5,7 +5,7 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
-      xcode: latest # Reverting to latest as 15.3 is unsupported
+      xcode: latest
       cocoapods: default
       groups:
         - apple_auth # App Store Connect API Key group
@@ -27,21 +27,17 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter clean
-          # NUCLEAR WIPE: Clear all problematic local caches/repos
-          rm -rf ios/Flutter
+          # Clean only caches, let flutter recreate what's needed
           rm -rf ios/Pods
           rm -f ios/Podfile.lock
-          rm -rf ~/.cocoapods
-          rm -rf ~/Library/Caches/CocoaPods
-          # Remove legacy master spec repo to force CDN usage
-          pod repo remove master || true
-          # Rebuild project structure
-          flutter create .
           flutter packages pub get
           flutter precache --ios
+          # Aggressive internal CocoaPods cleanup
+          pod cache clean --all
+          pod repo remove master || true
       - name: Build Flutter iOS (no codesign)
         script: |
-          # Flutter build command handles pod install internally using our CDN-aware Podfile
+          # The robust Podfile will handle finding the Flutter SDK correctly
           flutter build ios --release --no-codesign
       - name: Build IPA and Sign
         script: |
