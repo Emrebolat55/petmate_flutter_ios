@@ -33,8 +33,8 @@ jobs:
 
       - name: Build iOS (Ultra Verbose)
         run: |
-          # Use --verbose AND --trace-warnings to find the crash root
-          flutter build ios --release --no-codesign --verbose --trace-warnings
+          # Use --verbose to find the crash root
+          flutter build ios --release --no-codesign --verbose
           
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
